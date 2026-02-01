@@ -6,6 +6,7 @@ import { createDiscoveryRouter } from '@/routes/discovery';
 import { createEnrichmentRouter } from '@/routes/enrichment';
 import { createEventsRouter } from '@/routes/events';
 import { createHealthRouter } from '@/routes/health';
+import { createStatsRouter } from '@/routes/stats';
 import { createSuburbsRouter } from '@/routes/suburbs';
 
 function createApiRouter(): Router {
@@ -17,6 +18,7 @@ function createApiRouter(): Router {
   apiRouter.use('/discovery', createDiscoveryRouter());
   apiRouter.use('/enrichment', createEnrichmentRouter());
   apiRouter.use('/events', createEventsRouter());
+  apiRouter.use('/stats', createStatsRouter());
 
   apiRouter.use((_req: Request, res: Response) => {
     res.status(404).json({ error: 'Not found' });

@@ -24,11 +24,77 @@
     </header>
 
     <main class="container main">
+      <section class="panel panel--dashboard" aria-labelledby="dashboard-title">
+        <div class="panel__header">
+          <h2 id="dashboard-title">Dashboard</h2>
+          <div class="panel__headerRight">
+            <span class="pill" title="Last refreshed" id="dashboard-updated">—</span>
+            <button class="btn btn--ghost" id="refresh-dashboard" type="button">Refresh</button>
+          </div>
+        </div>
+
+        <div class="panelBody">
+          <div class="dashboardGrid">
+            <div class="statCard">
+              <div class="statCard__label">Suburbs</div>
+              <div class="statCard__value" id="dash-suburbs-total">—</div>
+              <div class="statCard__meta muted" id="dash-suburbs-processed">—</div>
+            </div>
+
+            <div class="statCard">
+              <div class="statCard__label">Agencies</div>
+              <div class="statCard__value" id="dash-agencies-total">—</div>
+              <div class="statCard__meta muted">Total in DB</div>
+            </div>
+
+            <div class="statCard">
+              <div class="statCard__label">Agents</div>
+              <div class="statCard__value" id="dash-agents-total">—</div>
+              <div class="statCard__meta muted">Total in DB</div>
+            </div>
+
+            <div class="statCard">
+              <div class="statCard__label">Enrichment</div>
+              <div class="statCard__value" id="dash-enrichment-percent">—</div>
+              <div class="statCard__meta muted" id="dash-enrichment-meta">—</div>
+              <div class="miniProgress" aria-hidden="true">
+                <div class="miniProgress__bar" id="dash-enrichment-bar"></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="overviewGrid">
+            <div>
+              <h3 class="overviewTitle">Suburb status</h3>
+              <div class="pillRow" id="dash-suburb-status"></div>
+            </div>
+            <div>
+              <h3 class="overviewTitle">Agent enrichment status</h3>
+              <div class="pillRow" id="dash-enrichment-status"></div>
+            </div>
+            <div>
+              <h3 class="overviewTitle">Enrichment quality</h3>
+              <div class="pillRow" id="dash-enrichment-quality"></div>
+            </div>
+          </div>
+
+          <div class="recentActivity">
+            <h3 class="overviewTitle">Recent activity</h3>
+            <div class="recentActivity__list" id="dash-recent-activity"></div>
+          </div>
+        </div>
+      </section>
+
       <section class="panel">
         <div class="panel__header">
           <h2>Suburbs</h2>
           <div class="panel__headerRight">
             <span class="muted" id="suburb-count">0</span>
+            <span class="pill" title="Selected suburbs">
+              selected: <span id="selected-count">0</span>
+            </span>
+            <button class="btn btn--ghost" id="select-all" type="button">Select All</button>
+            <button class="btn btn--ghost" id="clear-selection" type="button">Clear</button>
           </div>
         </div>
 
@@ -53,6 +119,13 @@
                 <option value="complete">complete</option>
                 <option value="failed">failed</option>
                 <option value="abandoned">abandoned</option>
+              </select>
+            </label>
+
+            <label class="field">
+              <span class="field__label">Region</span>
+              <select id="region-filter" class="field__control">
+                <option value="all">All</option>
               </select>
             </label>
 
@@ -122,6 +195,12 @@
           <div class="panel__header">
             <h2 id="activity-title">Activity</h2>
             <div class="panel__headerRight">
+              <div class="segmented segmented--mini" role="group" aria-label="Activity log filter">
+                <button class="segmented__btn is-active" data-log-filter="all" type="button">All</button>
+                <button class="segmented__btn" data-log-filter="errors" type="button">Errors</button>
+                <button class="segmented__btn" data-log-filter="discovery" type="button">Discovery</button>
+                <button class="segmented__btn" data-log-filter="enrichment" type="button">Enrichment</button>
+              </div>
               <button class="btn btn--ghost" id="clear-logs" type="button">Clear</button>
             </div>
           </div>

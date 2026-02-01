@@ -1,8 +1,12 @@
 (() => {
   const suburbListEl = document.getElementById('suburb-list');
   const suburbCountEl = document.getElementById('suburb-count');
+  const selectedCountEl = document.getElementById('selected-count');
+  const selectAllEl = document.getElementById('select-all');
+  const clearSelectionEl = document.getElementById('clear-selection');
   const detailEl = document.getElementById('detail');
   const statusFilterEl = document.getElementById('status-filter');
+  const regionFilterEl = document.getElementById('region-filter');
   const searchInputEl = document.getElementById('search-input');
   const logListEl = document.getElementById('log-list');
   const clearLogsEl = document.getElementById('clear-logs');
@@ -14,14 +18,33 @@
   const enrichmentProgressEl = document.getElementById('enrichment-progress');
   const enrichmentProgressTextEl = document.getElementById('enrichment-progress-text');
 
+  const dashUpdatedEl = document.getElementById('dashboard-updated');
+  const dashRefreshEl = document.getElementById('refresh-dashboard');
+  const dashSuburbsTotalEl = document.getElementById('dash-suburbs-total');
+  const dashSuburbsProcessedEl = document.getElementById('dash-suburbs-processed');
+  const dashAgenciesTotalEl = document.getElementById('dash-agencies-total');
+  const dashAgentsTotalEl = document.getElementById('dash-agents-total');
+  const dashEnrichmentPercentEl = document.getElementById('dash-enrichment-percent');
+  const dashEnrichmentMetaEl = document.getElementById('dash-enrichment-meta');
+  const dashEnrichmentBarEl = document.getElementById('dash-enrichment-bar');
+  const dashSuburbStatusEl = document.getElementById('dash-suburb-status');
+  const dashEnrichmentStatusEl = document.getElementById('dash-enrichment-status');
+  const dashEnrichmentQualityEl = document.getElementById('dash-enrichment-quality');
+  const dashRecentActivityEl = document.getElementById('dash-recent-activity');
+
   const state = {
     suburbs: [],
     selectedSlug: null,
+    selectedSlugs: new Set(),
     tier: 'all',
     status: 'all',
+    region: 'all',
     search: '',
     logs: [],
+    logFilter: 'all',
     pollingTimer: null,
+    pollingTimers: new Map(),
+    dashboardTimer: null,
     enrichment: {
       counts: null,
       pollCount: 0,
@@ -67,11 +90,20 @@
       .filter((s) => {
         if (state.tier !== 'all' && String(s.priority_tier) !== String(state.tier)) return false;
         if (state.status !== 'all' && String(s.status) !== String(state.status)) return false;
+        if (state.region !== 'all') {
+          const region = s.region ? String(s.region) : 'none';
+          if (region !== String(state.region)) return false;
+        }
         if (!search) return true;
         const haystack = `${s.suburb_name} ${s.state} ${s.postcode || ''}`.toLowerCase();
         return haystack.includes(search);
       })
       .sort(byName);
+  }
+
+  function updateSelectedCount() {
+    if (!selectedCountEl) return;
+    selectedCountEl.textContent = `${state.selectedSlugs.size}`;
   }
 
   function renderSuburbList() {
@@ -82,12 +114,24 @@
     for (const suburb of suburbs) {
       const indicator = statusIndicator(suburb.status);
       const item = document.createElement('div');
-      item.className = `listItem${suburb.slug === state.selectedSlug ? ' is-selected' : ''}`;
+      const isSelected = state.selectedSlugs.has(suburb.slug);
+      item.className = `listItem${isSelected ? ' is-selected' : ''}`;
       item.setAttribute('role', 'listitem');
       item.dataset.slug = suburb.slug;
 
       const left = document.createElement('div');
       left.className = 'listItem__left';
+
+      const check = document.createElement('input');
+      check.type = 'checkbox';
+      check.className = 'listItem__check';
+      check.checked = isSelected;
+      check.addEventListener('click', (e) => {
+        e.stopPropagation();
+      });
+      check.addEventListener('change', () => {
+        toggleSelection(suburb.slug, { makePrimary: true });
+      });
 
       const ind = document.createElement('div');
       ind.className = `indicator ${indicator.className}`;
@@ -105,21 +149,58 @@
       meta.textContent = `${suburb.state} ${suburb.postcode || ''} · tier ${suburb.priority_tier} · ${suburb.status}`;
 
       title.append(name, meta);
-      left.append(ind, title);
+      left.append(check, ind, title);
 
       const right = document.createElement('div');
-      right.className = 'listItem__right';
-      right.textContent = `${suburb.agencies_found || 0} agencies · ${suburb.agents_found || 0} agents`;
+      right.className = 'listItem__actions';
+
+      const counts = document.createElement('div');
+      counts.className = 'listItem__right';
+      counts.textContent = `${suburb.agencies_found || 0} agencies · ${suburb.agents_found || 0} agents`;
+      right.append(counts);
+
+      if (suburb.status === 'failed' || suburb.status === 'abandoned') {
+        const retry = document.createElement('button');
+        retry.type = 'button';
+        retry.className = 'miniBtn';
+        retry.textContent = 'Retry';
+        retry.addEventListener('click', (e) => {
+          e.stopPropagation();
+          void triggerDiscovery(suburb);
+        });
+        right.append(retry);
+      }
 
       item.append(left, right);
-      item.addEventListener('click', () => selectSuburb(suburb.slug));
+      item.addEventListener('click', () => toggleSelection(suburb.slug, { makePrimary: true }));
       suburbListEl.append(item);
     }
+
+    updateSelectedCount();
   }
 
   function setSelectedSlug(slug) {
     state.selectedSlug = slug;
     renderSuburbList();
+  }
+
+  function toggleSelection(slug, options) {
+    const makePrimary = options && options.makePrimary !== undefined ? Boolean(options.makePrimary) : true;
+    const wasSelected = state.selectedSlugs.has(slug);
+    if (wasSelected) state.selectedSlugs.delete(slug);
+    else state.selectedSlugs.add(slug);
+
+    if (makePrimary) {
+      if (state.selectedSlugs.size === 0) {
+        state.selectedSlug = null;
+      } else if (!wasSelected) {
+        state.selectedSlug = slug;
+      } else if (state.selectedSlug === slug) {
+        state.selectedSlug = Array.from(state.selectedSlugs)[0] || null;
+      }
+    }
+    renderSuburbList();
+    void renderDetail();
   }
 
   function findSelectedSuburb() {
@@ -139,8 +220,48 @@
   async function loadSuburbs() {
     const suburbs = await fetchJson('/api/suburbs');
     state.suburbs = Array.isArray(suburbs) ? suburbs : [];
+    ensureSelectionsStillValid();
+    populateRegionFilter();
     renderSuburbList();
     renderDetail();
+  }
+
+  function ensureSelectionsStillValid() {
+    const slugSet = new Set(state.suburbs.map((s) => s.slug));
+    for (const slug of Array.from(state.selectedSlugs)) {
+      if (!slugSet.has(slug)) state.selectedSlugs.delete(slug);
+    }
+    if (state.selectedSlug && !slugSet.has(state.selectedSlug)) state.selectedSlug = null;
+  }
+
+  function populateRegionFilter() {
+    if (!regionFilterEl) return;
+    const regions = new Set();
+    for (const suburb of state.suburbs) {
+      if (suburb.region && String(suburb.region).trim().length > 0) regions.add(String(suburb.region));
+    }
+
+    const current = regionFilterEl.value || 'all';
+    regionFilterEl.innerHTML = '';
+
+    const allOpt = document.createElement('option');
+    allOpt.value = 'all';
+    allOpt.textContent = 'All';
+    regionFilterEl.append(allOpt);
+
+    const noneOpt = document.createElement('option');
+    noneOpt.value = 'none';
+    noneOpt.textContent = 'Unspecified';
+    regionFilterEl.append(noneOpt);
+
+    for (const region of Array.from(regions).sort((a, b) => a.localeCompare(b))) {
+      const opt = document.createElement('option');
+      opt.value = region;
+      opt.textContent = region;
+      regionFilterEl.append(opt);
+    }
+
+    regionFilterEl.value = Array.from(regionFilterEl.options).some((o) => o.value === current) ? current : 'all';
   }
 
   async function loadAgencies(suburb) {
@@ -337,6 +458,21 @@
   }
 
   async function renderDetail() {
+    const selected = Array.from(state.selectedSlugs);
+    if (selected.length === 0) {
+      detailEl.innerHTML = `
+        <div class="empty">
+          <p class="muted">Select a suburb from the list to view details.</p>
+        </div>
+      `;
+      return;
+    }
+
+    if (selected.length > 1) {
+      renderMultiSelectDetail(selected);
+      return;
+    }
+
     const suburb = findSelectedSuburb();
     if (!suburb) {
       detailEl.innerHTML = `
@@ -437,8 +573,25 @@
         <button class="btn" id="run-discovery" type="button" ${canRun ? '' : 'disabled'}>
           ${canRun ? 'Run Discovery' : 'Discovery Running…'}
         </button>
+        <button class="btn btn--ghost" id="retry-discovery" type="button" ${
+          suburb.status === 'failed' || suburb.status === 'abandoned' ? '' : 'disabled'
+        }>Retry</button>
         <button class="btn btn--ghost" id="refresh-detail" type="button">Refresh</button>
       </div>
+
+      ${
+        suburb.error_message
+          ? `
+            <div class="section">
+              <h4>Last error</h4>
+              <div class="empty">
+                <p class="muted">${escapeHtml(suburb.error_message)}</p>
+                <p class="muted">retry_count: ${escapeHtml(suburb.retry_count || 0)}</p>
+              </div>
+            </div>
+          `
+          : ''
+      }
 
       <div class="section">
         <h4>Agencies</h4>
@@ -452,9 +605,110 @@
     `;
 
     const runBtn = document.getElementById('run-discovery');
+    const retryBtn = document.getElementById('retry-discovery');
     const refreshBtn = document.getElementById('refresh-detail');
     if (runBtn) runBtn.addEventListener('click', () => triggerDiscovery(suburb));
+    if (retryBtn) retryBtn.addEventListener('click', () => triggerDiscovery(suburb));
     if (refreshBtn) refreshBtn.addEventListener('click', () => refreshSelectedSuburb());
+  }
+
+  function renderMultiSelectDetail(selectedSlugs) {
+    const suburbs = selectedSlugs
+      .map((slug) => state.suburbs.find((s) => s.slug === slug) || null)
+      .filter((s) => Boolean(s));
+
+    const selectedCount = suburbs.length;
+    const statusCounts = { pending: 0, in_progress: 0, discovered: 0, complete: 0, failed: 0, abandoned: 0 };
+    for (const suburb of suburbs) {
+      const key = suburb.status || 'pending';
+      if (key in statusCounts) statusCounts[key] += 1;
+      else statusCounts.pending += 1;
+    }
+
+    const listHtml = suburbs
+      .slice()
+      .sort(byName)
+      .map((s) => {
+        const indicator = statusIndicator(s.status);
+        const err = s.error_message ? ` · error: ${escapeHtml(s.error_message)}` : '';
+        return `
+          <div class="agentItem">
+            <div>
+              <div class="agentItem__nameRow">
+                <div class="agentItem__name">
+                  <span class="${escapeHtml(indicator.className)}">${escapeHtml(indicator.symbol)}</span>
+                  ${escapeHtml(s.suburb_name)}, ${escapeHtml(s.state)} ${escapeHtml(s.postcode || '')}
+                </div>
+                <div class="statusPill">${escapeHtml(s.status || 'pending')}</div>
+              </div>
+              <div class="agentItem__meta">${escapeHtml(s.slug)} · tier ${escapeHtml(s.priority_tier)} · ${
+                escapeHtml(s.agencies_found || 0)
+              } agencies · ${escapeHtml(s.agents_found || 0)} agents${err}</div>
+            </div>
+            <div class="agentItem__meta">${escapeHtml(s.region || '')}</div>
+          </div>
+        `;
+      })
+      .join('');
+
+    const anyRunnable = suburbs.some((s) => s.status !== 'in_progress');
+    detailEl.innerHTML = `
+      <div class="detailHeader">
+        <div class="detailTitle">
+          <h3>Selected suburbs (${escapeHtml(selectedCount)})</h3>
+          <p class="muted">Run discovery in batch, monitor status, and retry failures.</p>
+        </div>
+      </div>
+
+      <div class="stats">
+        <div class="stat"><div class="stat__label">pending</div><div class="stat__value">${escapeHtml(
+          statusCounts.pending
+        )}</div></div>
+        <div class="stat"><div class="stat__label">in_progress</div><div class="stat__value">${escapeHtml(
+          statusCounts.in_progress
+        )}</div></div>
+        <div class="stat"><div class="stat__label">discovered</div><div class="stat__value">${escapeHtml(
+          statusCounts.discovered
+        )}</div></div>
+        <div class="stat"><div class="stat__label">failed</div><div class="stat__value">${escapeHtml(
+          statusCounts.failed + statusCounts.abandoned
+        )}</div></div>
+      </div>
+
+      <div class="btnRow">
+        <button class="btn" id="run-discovery-batch" type="button" ${anyRunnable ? '' : 'disabled'}>
+          Run Discovery (${escapeHtml(selectedCount)})
+        </button>
+        <button class="btn btn--ghost" id="refresh-batch" type="button">Refresh</button>
+        <button class="btn btn--ghost" id="retry-failed-batch" type="button" ${
+          statusCounts.failed + statusCounts.abandoned > 0 ? '' : 'disabled'
+        }>Retry failed</button>
+      </div>
+
+      <div class="section">
+        <h4>Suburbs</h4>
+        <div class="agentList">${listHtml}</div>
+      </div>
+    `;
+
+    const runBatch = document.getElementById('run-discovery-batch');
+    const refreshBatch = document.getElementById('refresh-batch');
+    const retryBatch = document.getElementById('retry-failed-batch');
+    if (runBatch) runBatch.addEventListener('click', () => triggerBatchDiscovery(selectedSlugs));
+    if (refreshBatch) refreshBatch.addEventListener('click', () => refreshBatchSuburbs(selectedSlugs));
+    if (retryBatch) retryBatch.addEventListener('click', () => triggerBatchDiscovery(selectedSlugs, { failedOnly: true }));
+  }
+
+  async function refreshBatchSuburbs(slugs) {
+    const unique = Array.from(new Set(slugs));
+    for (const slug of unique) {
+      try {
+        await refreshSuburbBySlug(slug);
+      } catch {
+        // ignore
+      }
+    }
+    await renderDetail();
   }
 
   async function refreshSelectedSuburb() {
@@ -471,35 +725,36 @@
     renderSuburbList();
   }
 
-  function stopPolling() {
-    if (state.pollingTimer) {
-      window.clearInterval(state.pollingTimer);
-      state.pollingTimer = null;
-    }
+  function stopPollingForSlug(slug) {
+    const timer = state.pollingTimers.get(slug);
+    if (!timer) return;
+    window.clearInterval(timer);
+    state.pollingTimers.delete(slug);
   }
 
   function startPollingUntilDone(slug) {
-    stopPolling();
-    state.pollingTimer = window.setInterval(async () => {
+    stopPollingForSlug(slug);
+    const timer = window.setInterval(async () => {
       try {
         const before = state.suburbs.find((s) => s.slug === slug) || null;
         await refreshSuburbBySlug(slug);
         const after = state.suburbs.find((s) => s.slug === slug) || null;
         if (before && after && before.status === 'in_progress' && after.status !== 'in_progress') {
-          stopPolling();
-          if (state.selectedSlug === slug) await renderDetail();
+          stopPollingForSlug(slug);
+          await renderDetail();
         }
       } catch {
         // Keep polling.
       }
     }, 2000);
+    state.pollingTimers.set(slug, timer);
   }
 
   async function triggerDiscovery(suburb) {
     if (!suburb) return;
     if (suburb.status === 'in_progress') return;
 
-    appendUiLog('info', 'ui', `Starting discovery: ${suburb.suburb_name}, ${suburb.state}`, { slug: suburb.slug });
+    appendUiLog('info', 'discovery', `Starting discovery: ${suburb.suburb_name}, ${suburb.state}`, { slug: suburb.slug });
 
     const updated = { ...suburb, status: 'in_progress' };
     state.suburbs = state.suburbs.map((s) => (s.slug === suburb.slug ? updated : s));
@@ -514,9 +769,29 @@
       });
       startPollingUntilDone(suburb.slug);
     } catch (error) {
-      appendUiLog('error', 'ui', 'Failed to start discovery', { error: String(error) });
+      appendUiLog('error', 'discovery', 'Failed to start discovery', { error: String(error) });
       await refreshSuburbBySlug(suburb.slug);
       await renderDetail();
+    }
+  }
+
+  async function triggerBatchDiscovery(slugs, options) {
+    const failedOnly = Boolean(options && options.failedOnly);
+    const unique = Array.from(new Set(slugs));
+    for (const slug of unique) {
+      const suburb = state.suburbs.find((s) => s.slug === slug) || null;
+      if (!suburb) continue;
+      if (suburb.status === 'in_progress') continue;
+      if (failedOnly && suburb.status !== 'failed' && suburb.status !== 'abandoned') continue;
+      try {
+        // Small delay to keep UI responsive and avoid spamming.
+        // eslint-disable-next-line no-await-in-loop
+        await triggerDiscovery(suburb);
+        // eslint-disable-next-line no-await-in-loop
+        await new Promise((r) => setTimeout(r, 250));
+      } catch {
+        // Continue batch.
+      }
     }
   }
 
@@ -541,8 +816,18 @@
     renderLogs();
   }
 
+  function matchesLogFilter(entry) {
+    if (state.logFilter === 'all') return true;
+    if (state.logFilter === 'errors') return entry.type === 'error';
+    const route = String(entry.route || '');
+    if (state.logFilter === 'discovery') return route === 'discovery' || route.includes('/api/discovery');
+    if (state.logFilter === 'enrichment') return route === 'enrichment' || route.includes('/api/enrichment');
+    return true;
+  }
+
   function renderLogs() {
-    const last = state.logs.slice(-200);
+    const filtered = state.logs.filter(matchesLogFilter);
+    const last = filtered.slice(-200);
     logListEl.innerHTML = last
       .map((l) => {
         const ts = new Date(l.timestamp).toLocaleTimeString();
@@ -595,13 +880,12 @@
   }
 
   function selectSuburb(slug) {
-    setSelectedSlug(slug);
-    void renderDetail();
+    toggleSelection(slug, { makePrimary: true });
   }
 
   function setTierFilter(tier) {
     state.tier = tier;
-    const buttons = document.querySelectorAll('.segmented__btn');
+    const buttons = document.querySelectorAll('[data-tier]');
     for (const btn of buttons) {
       btn.classList.toggle('is-active', btn.dataset.tier === String(tier));
     }
@@ -611,13 +895,22 @@
   function bindUi() {
     const buttons = document.querySelectorAll('.segmented__btn');
     for (const btn of buttons) {
-      btn.addEventListener('click', () => setTierFilter(btn.dataset.tier || 'all'));
+      if (btn.dataset.tier) {
+        btn.addEventListener('click', () => setTierFilter(btn.dataset.tier || 'all'));
+      }
     }
 
     statusFilterEl.addEventListener('change', () => {
       state.status = statusFilterEl.value;
       renderSuburbList();
     });
+
+    if (regionFilterEl) {
+      regionFilterEl.addEventListener('change', () => {
+        state.region = regionFilterEl.value;
+        renderSuburbList();
+      });
+    }
 
     let searchTimer = null;
     searchInputEl.addEventListener('input', () => {
@@ -633,6 +926,37 @@
       renderLogs();
     });
 
+    const logFilterButtons = document.querySelectorAll('[data-log-filter]');
+    for (const btn of logFilterButtons) {
+      btn.addEventListener('click', () => {
+        state.logFilter = btn.dataset.logFilter || 'all';
+        for (const other of logFilterButtons) {
+          other.classList.toggle('is-active', other.dataset.logFilter === state.logFilter);
+        }
+        renderLogs();
+      });
+    }
+
+    if (selectAllEl) {
+      selectAllEl.addEventListener('click', () => {
+        for (const suburb of filteredSuburbs()) state.selectedSlugs.add(suburb.slug);
+        if (!state.selectedSlug && state.selectedSlugs.size > 0) {
+          state.selectedSlug = Array.from(state.selectedSlugs)[0];
+        }
+        renderSuburbList();
+        void renderDetail();
+      });
+    }
+
+    if (clearSelectionEl) {
+      clearSelectionEl.addEventListener('click', () => {
+        state.selectedSlugs.clear();
+        state.selectedSlug = null;
+        renderSuburbList();
+        void renderDetail();
+      });
+    }
+
     if (enrichmentBatchSizeEl) {
       enrichmentBatchSizeEl.addEventListener('change', () => {
         state.enrichment.batchSize = Math.min(Math.max(asSafeNumber(enrichmentBatchSizeEl.value, 5), 1), 50);
@@ -644,14 +968,119 @@
         void triggerEnrichment();
       });
     }
+
+    if (dashRefreshEl) {
+      dashRefreshEl.addEventListener('click', () => {
+        void loadDashboard();
+      });
+    }
+  }
+
+  function tagClassForKey(key) {
+    if (key === 'complete' || key === 'discovered' || key === 'high') return 'tag tag--good';
+    if (key === 'in_progress' || key === 'medium') return 'tag tag--warn';
+    if (key === 'failed' || key === 'abandoned') return 'tag tag--bad';
+    return 'tag';
+  }
+
+  function renderTags(container, counts, preferredOrder) {
+    if (!container) return;
+    container.innerHTML = '';
+    const keys = Object.keys(counts || {});
+    const order = Array.isArray(preferredOrder) && preferredOrder.length > 0 ? preferredOrder : keys;
+    for (const key of order) {
+      if (!Object.prototype.hasOwnProperty.call(counts, key)) continue;
+      const value = counts[key];
+      const el = document.createElement('span');
+      el.className = tagClassForKey(key);
+      el.textContent = `${key}: ${value}`;
+      container.append(el);
+    }
+  }
+
+  function renderRecentActivity(events) {
+    if (!dashRecentActivityEl) return;
+    if (!Array.isArray(events) || events.length === 0) {
+      dashRecentActivityEl.innerHTML = '<div class="muted">No recent activity yet.</div>';
+      return;
+    }
+    dashRecentActivityEl.innerHTML = events
+      .slice(0, 10)
+      .map((e) => {
+        const ts = new Date(e.timestamp).toLocaleTimeString();
+        const type = e.type === 'success' ? 'success' : e.type === 'error' ? 'error' : 'info';
+        return `
+          <div class="recentActivity__item">
+            <div class="recentActivity__ts">${escapeHtml(ts)}</div>
+            <div class="recentActivity__type recentActivity__type--${escapeHtml(type)}">${escapeHtml(type)}</div>
+            <div class="recentActivity__msg" title="${escapeHtml(e.message)}">${escapeHtml(e.message)}</div>
+          </div>
+        `;
+      })
+      .join('');
+  }
+
+  function renderDashboard(data) {
+    if (!data || typeof data !== 'object') return;
+
+    const totals = data.totals || {};
+    const suburbsByStatus = data.suburbs_by_status || {};
+    const enrichmentByStatus = data.enrichment_by_status || {};
+    const enrichmentByQuality = data.enrichment_by_quality || {};
+
+    const suburbsTotal = asSafeNumber(totals.suburbs, 0);
+    const agenciesTotal = asSafeNumber(totals.agencies, 0);
+    const agentsTotal = asSafeNumber(totals.agents, 0);
+    const pendingSuburbs = asSafeNumber(suburbsByStatus.pending, 0);
+    const processedSuburbs = Math.max(suburbsTotal - pendingSuburbs, 0);
+
+    const enrichmentTotal = asSafeNumber(enrichmentByStatus.total, 0);
+    const enrichmentComplete = asSafeNumber(enrichmentByStatus.complete, 0);
+    const percent = enrichmentTotal > 0 ? Math.round((enrichmentComplete / enrichmentTotal) * 100) : 0;
+
+    if (dashUpdatedEl) dashUpdatedEl.textContent = data.generated_at ? new Date(data.generated_at).toLocaleString() : '—';
+    if (dashSuburbsTotalEl) dashSuburbsTotalEl.textContent = `${suburbsTotal}`;
+    if (dashSuburbsProcessedEl) dashSuburbsProcessedEl.textContent = `${processedSuburbs} processed`;
+    if (dashAgenciesTotalEl) dashAgenciesTotalEl.textContent = `${agenciesTotal}`;
+    if (dashAgentsTotalEl) dashAgentsTotalEl.textContent = `${agentsTotal}`;
+    if (dashEnrichmentPercentEl) dashEnrichmentPercentEl.textContent = `${percent}%`;
+    if (dashEnrichmentMetaEl) dashEnrichmentMetaEl.textContent = `${enrichmentComplete}/${enrichmentTotal} complete`;
+    if (dashEnrichmentBarEl) dashEnrichmentBarEl.style.width = `${percent}%`;
+
+    renderTags(
+      dashSuburbStatusEl,
+      suburbsByStatus,
+      ['pending', 'in_progress', 'discovered', 'complete', 'failed', 'abandoned']
+    );
+    renderTags(
+      dashEnrichmentStatusEl,
+      enrichmentByStatus,
+      ['pending', 'in_progress', 'complete', 'failed', 'skipped', 'total']
+    );
+    renderTags(dashEnrichmentQualityEl, enrichmentByQuality, ['high', 'medium', 'low', 'minimal', 'none']);
+    renderRecentActivity(data.recent_activity);
+  }
+
+  async function loadDashboard() {
+    try {
+      const data = await fetchJson('/api/stats');
+      renderDashboard(data);
+    } catch (error) {
+      appendUiLog('error', 'ui', 'Failed to load dashboard', { error: String(error) });
+    }
   }
 
   async function init() {
     bindUi();
     connectEvents();
+    await loadDashboard();
     await loadSuburbs();
     await loadEnrichmentCounts();
     appendUiLog('info', 'ui', 'Loaded suburbs', { count: state.suburbs.length });
+
+    state.dashboardTimer = window.setInterval(() => {
+      void loadDashboard();
+    }, 10_000);
   }
 
   void init();

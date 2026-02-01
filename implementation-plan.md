@@ -1742,10 +1742,15 @@ Using Playwright MCP:
 ---
 
 ## Step 14: Control Center UI - Complete
-**Status:** [ ]
+**Status:** [x]
 
 ### What to Build
 Complete all remaining Control Center UI functionality for full pipeline control.
+
+### Implementation Notes
+- Added `GET /api/stats` for dashboard totals and distributions.
+- Control Center UI now supports multi-select suburbs, batch discovery, retry for failed suburbs, region filtering, and activity log filtering.
+- Discovery completion updates suburb status to `discovered` (treated as complete for UI batch workflows).
 
 ### Files to Modify
 
