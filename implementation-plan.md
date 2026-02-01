@@ -1875,11 +1875,53 @@ Using Playwright MCP:
 
 ---
 
+## Step 14.6: Fixture Mode Override for Skills
+**Status:** [x]
+
+### What to Build
+Allow forcing deterministic fixture behavior for discovery/enrichment runs even when `ANTHROPIC_API_KEY` is set.
+
+### Implementation Notes
+- Added `ARI_FIXTURE_MODE=1` support to `runDiscovery()` / `runEnrichment()` so end-to-end tests never accidentally call Anthropic.
+- Documented the env var in `.env.example` and `agents.md`.
+
+---
+
+## Step 14.7: Homepage JSON-LD Schema Markup
+**Status:** [x]
+
+### What to Build
+Ensure the SEO homepage includes JSON-LD schema markup so it passes the global "every page has schema markup" requirement.
+
+### Implementation Notes
+- Added `HomeSchema` using `WebSite` + `WebPage` JSON-LD and rendered it on `/`.
+
+---
+
+## Step 14.8: Preserve TTY for Next.js Dev Server
+**Status:** [x]
+
+### What to Build
+Ensure `npm run dev` and end-to-end tests do not run the Next.js dev server in a way that breaks serving versioned client assets (e.g. `/_next/static/chunks/webpack.js?v=...`).
+
+### Implementation Notes
+- Updated `scripts/dev.js` to run the SEO site with inherited stdio so Next.js dev serves chunk URLs reliably and client hydration works.
+- Updated `scripts/test-e2e.js` to start the SEO dev server with inherited stdio and assert the homepage-referenced `webpack.js?v=...` returns 200.
+
+---
+
 ## Step 15: End-to-End Flow Tests
-**Status:** [ ]
+**Status:** [x]
 
 ### What to Build
 Comprehensive end-to-end tests verifying the complete pipeline works.
+
+### Implementation Notes
+- Added `scripts/test-e2e.js` and wired it into `npm test` via `npm run test:e2e`.
+- E2E runner starts both servers with `ARI_FIXTURE_MODE=1` by default, runs discovery + enrichment, validates DB state, validates SEO pages, and crawls internal links.
+- Added an explicit check that the Next.js dev `webpack.js?v=...` chunk referenced by the homepage returns 200 (client hydration depends on these assets).
+- Captured Playwright screenshots under `logs/` (ignored by git) using the filenames referenced in the verification steps.
+- Updated build verification (V15.8) to compare the build's "Generating static pages (X/X)" line against DB-derived expected counts.
 
 ### Test Scenarios
 
@@ -2041,18 +2083,23 @@ Using Playwright MCP:
 ```bash
 npm run build --prefix seo-site
 
-# Count generated pages
-agent_count=$(ls seo-site/.next/server/app/agent/ 2>/dev/null | wc -l)
-agency_count=$(ls seo-site/.next/server/app/agency/ 2>/dev/null | wc -l)
-suburb_count=$(ls seo-site/.next/server/app/agents-in/ 2>/dev/null | grep -v '\[' | wc -l)
+# Next.js App Router does not emit per-slug folders under `seo-site/.next/server/app/`.
+# Instead, compare the build output line:
+#   "Generating static pages (X/X)"
+# against the expected route count derived from the DB.
 
-echo "Agents: $agent_count"
-echo "Agencies: $agency_count"
-echo "Suburbs: $suburb_count"
+suburbs=$(sqlite3 data/ari.db "SELECT COUNT(*) FROM scrape_progress")
+agencies=$(sqlite3 data/ari.db "SELECT COUNT(*) FROM agencies")
+agents=$(sqlite3 data/ari.db "SELECT COUNT(*) FROM agents WHERE enrichment_status IS NULL OR enrichment_status IN ('pending','complete')")
 
-# Verify matches database
-db_agents=$(sqlite3 data/ari.db "SELECT COUNT(*) FROM agents WHERE enrichment_status = 'complete'")
-echo "DB Agents: $db_agents"
+# Static routes: /, /_not-found, /robots.txt, /sitemap.xml
+base_pages=4
+
+# State pages: act, nsw, nt, qld, sa, tas, vic, wa
+states=8
+
+expected=$((base_pages + states + suburbs + agencies + agents))
+echo "Expected static pages: $expected"
 ```
 Expected: Page counts approximately match database counts
 

@@ -164,6 +164,7 @@ export async function runEnrichment(input: RunEnrichmentInput): Promise<RunEnric
 
   const limit = Number.isFinite(input.limit) && input.limit > 0 ? Math.floor(input.limit) : 10;
   const dryRun = Boolean(input.dryRun);
+  const fixtureMode = process.env.ARI_FIXTURE_MODE === '1';
 
   if (dryRun) {
     logger.info('enrichment', 'dry run', { limit });
@@ -181,7 +182,7 @@ export async function runEnrichment(input: RunEnrichmentInput): Promise<RunEnric
       updateAgent(agent.id, { enrichment_status: 'in_progress', enrichment_error: null, enrichment_sources: [] });
     }
 
-    const hasKey = Boolean(process.env.ANTHROPIC_API_KEY);
+    const hasKey = Boolean(process.env.ANTHROPIC_API_KEY) && !fixtureMode;
     const rawOutput = hasKey ? await runClaudeEnrichment(pendingAgents, tracker) : buildFixtureOutput(pendingAgents);
 
     const { completed, failed } = applyEnrichmentResults(pendingAgents, rawOutput);
@@ -212,4 +213,3 @@ export async function runEnrichment(input: RunEnrichmentInput): Promise<RunEnric
     return { status: 'failed', processed: pendingAgents.length, completed: 0, failed: pendingAgents.length, cost: tracker.totals() };
   }
 }
-

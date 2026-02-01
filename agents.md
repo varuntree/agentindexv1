@@ -356,6 +356,7 @@ Required:
 
 Optional:
 - `DATABASE_PATH` (defaults to `./data/ari.db`)
+- `ARI_FIXTURE_MODE=1` to force deterministic fixture runs (useful for tests; disables Anthropic calls even if `ANTHROPIC_API_KEY` is set)
 
 ### Local Env Loading Pattern
 - Control Center: load `../.env` via `dotenv` at startup (e.g. in `control-center/src/index.ts`)

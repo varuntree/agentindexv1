@@ -1,37 +1,16 @@
 const { spawn } = require('node:child_process');
 
-function prefixStream(stream, prefix) {
-  let buffered = '';
-  stream.on('data', (chunk) => {
-    buffered += chunk.toString('utf8');
-    const lines = buffered.split('\n');
-    buffered = lines.pop() ?? '';
-    for (const line of lines) {
-      if (line.length === 0) continue;
-      process.stdout.write(`${prefix} ${line}\n`);
-    }
-  });
-  stream.on('end', () => {
-    if (buffered.length > 0) {
-      process.stdout.write(`${prefix} ${buffered}\n`);
-    }
-  });
-}
-
-function runProcess(label, args) {
+function runProcess(args) {
   const child = spawn('npm', args, {
-    stdio: ['ignore', 'pipe', 'pipe'],
+    stdio: 'inherit',
     env: process.env,
   });
-
-  prefixStream(child.stdout, `[${label}]`);
-  prefixStream(child.stderr, `[${label}]`);
 
   return child;
 }
 
-const control = runProcess('control-center', ['run', 'dev', '--prefix', 'control-center']);
-const seo = runProcess('seo-site', ['run', 'dev', '--prefix', 'seo-site']);
+const control = runProcess(['run', 'dev', '--prefix', 'control-center']);
+const seo = runProcess(['run', 'dev', '--prefix', 'seo-site']);
 
 function shutdown(signal) {
   if (!control.killed) control.kill(signal);
@@ -51,4 +30,3 @@ function onExit(code) {
 
 control.on('exit', (code) => onExit(code));
 seo.on('exit', (code) => onExit(code));
-

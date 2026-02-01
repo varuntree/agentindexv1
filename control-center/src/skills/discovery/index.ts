@@ -370,6 +370,7 @@ export async function runDiscovery(input: RunDiscoveryInput): Promise<RunDiscove
 
   const suburbSlug = suburbProgress.slug;
   const route = 'discovery';
+  const fixtureMode = process.env.ARI_FIXTURE_MODE === '1';
 
   if (input.dryRun) {
     logger.info(route, 'dry run', { suburb: suburbProgress.suburb_name, state: suburbProgress.state, suburbSlug });
@@ -386,7 +387,7 @@ export async function runDiscovery(input: RunDiscoveryInput): Promise<RunDiscove
     updateSuburbProgress(suburbSlug, { status: 'in_progress', started_at: new Date().toISOString(), error_message: null });
     logger.info(route, 'starting', { suburb: suburbProgress.suburb_name, state: suburbProgress.state, suburbSlug });
 
-    const hasKey = Boolean(process.env.ANTHROPIC_API_KEY);
+    const hasKey = Boolean(process.env.ANTHROPIC_API_KEY) && !fixtureMode;
     const output = hasKey ? await runClaudeDiscovery(suburbProgress, tracker) : buildFixtureOutput(suburbProgress);
 
     const agencies = output.agencies.slice(0, 20);

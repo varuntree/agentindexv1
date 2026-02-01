@@ -7,10 +7,10 @@
     "dev:control": "npm run dev --prefix control-center",
     "dev:seo": "npm run dev --prefix seo-site",
     "build": "npm run build --prefix seo-site",
-    "test": "npm run test:db && npm run test:build",
+    "test": "npm run test:db && npm run test:build && npm run test:e2e",
     "test:db": "node scripts/test-db.js",
     "test:build": "npm run build --prefix seo-site",
+    "test:e2e": "node scripts/test-e2e.js",
     "db:migrate": "node scripts/migrate.js"
   }
 }
-

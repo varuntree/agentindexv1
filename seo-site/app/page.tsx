@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 
+import { HomeSchema } from '@/components/seo/HomeSchema';
 import { Card } from '@/components/ui/Card';
 import { getAllSuburbs } from '@/lib/queries';
 import { AU_STATES, formatStateLabel, stateCodeToSlug } from '@/lib/utils';
@@ -9,6 +10,22 @@ export const metadata: Metadata = {
   title: 'Find Real Estate Agents in Australia',
   description: 'Find real estate agents by suburb and state across Australia.'
 };
+
+function getSiteOrigin(): string {
+  const raw = process.env.NEXT_PUBLIC_SITE_URL || process.env.SITE_URL;
+  if (raw) {
+    try {
+      return new URL(raw).origin;
+    } catch {
+      return 'http://localhost:3000';
+    }
+  }
+  return 'http://localhost:3000';
+}
+
+function buildCanonicalUrl(): string {
+  return `${getSiteOrigin()}/`;
+}
 
 function getFeaturedSuburbs(): ReturnType<typeof getAllSuburbs> {
   const suburbs = getAllSuburbs();
@@ -23,9 +40,12 @@ function getFeaturedSuburbs(): ReturnType<typeof getAllSuburbs> {
 
 export default function HomePage(): JSX.Element {
   const featuredSuburbs = getFeaturedSuburbs();
+  const canonicalUrl = buildCanonicalUrl();
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-10">
+      <HomeSchema canonicalUrl={canonicalUrl} />
+
       <section className="grid gap-8 md:grid-cols-2 md:items-center">
         <div className="space-y-4">
           <h1 className="text-3xl font-semibold tracking-tight text-slate-900 sm:text-4xl">
@@ -106,4 +126,3 @@ export default function HomePage(): JSX.Element {
     </div>
   );
 }
-
