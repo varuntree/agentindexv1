@@ -709,7 +709,7 @@ Expected: Returns event stream format
 ---
 
 ## Step 6: SEO Site Foundation
-**Status:** [ ]
+**Status:** [x]
 
 ### What to Build
 Complete Next.js foundation with layout, homepage, database connectivity, and shared components.
@@ -758,6 +758,10 @@ seo-site/
 - Tailwind CSS
 - Mobile-responsive
 - Clean, professional look
+
+**Notes:**
+- Tailwind v4 uses `@tailwindcss/postcss` and `@import "tailwindcss"` in `seo-site/app/globals.css`.
+- `seo-site/lib/database.ts` resolves the DB path when running from either repo root or `seo-site/`.
 
 ### Verification
 

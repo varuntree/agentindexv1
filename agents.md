@@ -168,6 +168,9 @@ seo-site/app/
 └── robots.ts
 ```
 
+### Routing Gotcha
+- Next.js cannot have two sibling dynamic segments under the same folder (e.g. `agents-in/[state]` and `agents-in/[slug]`) because both match a single path segment. Prefer static state routes (e.g. `agents-in/nsw`) or a single catch-all route.
+
 ### Page Pattern
 ```typescript
 // Static generation - runs at build time
