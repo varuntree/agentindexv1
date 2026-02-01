@@ -78,18 +78,58 @@
         </div>
       </section>
 
-      <section class="panel panel--logs">
-        <div class="panel__header">
-          <h2>Activity</h2>
-          <div class="panel__headerRight">
-            <button class="btn btn--ghost" id="clear-logs" type="button">Clear</button>
+      <div class="sideColumn">
+        <section class="panel" aria-labelledby="enrichment-title">
+          <div class="panel__header">
+            <h2 id="enrichment-title">Enrichment</h2>
+            <div class="panel__headerRight">
+              <span class="pill" title="Agents pending enrichment">
+                pending: <span id="enrichment-pending-count">0</span>
+              </span>
+              <span class="pill" title="Agents currently enriching">
+                in_progress: <span id="enrichment-in-progress-count">0</span>
+              </span>
+            </div>
           </div>
-        </div>
-        <div class="logs" id="log-list" aria-live="polite"></div>
-      </section>
+
+          <div class="panelBody">
+            <div class="enrichmentControls">
+              <label class="field">
+                <span class="field__label">Batch size</span>
+                <input
+                  id="enrichment-batch-size"
+                  class="field__control"
+                  type="number"
+                  min="1"
+                  max="50"
+                  step="1"
+                  value="5"
+                />
+              </label>
+              <button class="btn" id="run-enrichment" type="button">Run Enrichment</button>
+            </div>
+
+            <div class="progress" id="enrichment-progress" hidden>
+              <div class="progress__bar" aria-hidden="true"></div>
+              <div class="progress__meta">
+                <span class="muted" id="enrichment-progress-text">Enrichment running…</span>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel panel--logs" aria-labelledby="activity-title">
+          <div class="panel__header">
+            <h2 id="activity-title">Activity</h2>
+            <div class="panel__headerRight">
+              <button class="btn btn--ghost" id="clear-logs" type="button">Clear</button>
+            </div>
+          </div>
+          <div class="logs" id="log-list" aria-live="polite"></div>
+        </section>
+      </div>
     </main>
 
     <script src="/app.js" defer></script>
   </body>
 </html>
-

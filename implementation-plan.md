@@ -1512,7 +1512,7 @@ Expected: Returns running/success status
 ---
 
 ## Step 12: Control Center UI - Enrichment
-**Status:** [ ]
+**Status:** [x]
 
 ### What to Build
 Add enrichment controls and progress display to Control Center UI.
@@ -1545,6 +1545,10 @@ control-center/
 3. **Activity Log Updates**
    - Enrichment progress events
    - Per-agent completion status
+
+### Implementation Notes
+- Added `/api/agents/enrichment-status` to power accurate pending/in-progress counts.
+- Updated Control Center UI to include an Enrichment panel, progress display, and per-agent enrichment status + quality in suburb detail.
 
 ### Verification
 

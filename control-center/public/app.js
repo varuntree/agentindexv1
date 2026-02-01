@@ -7,6 +7,12 @@
   const logListEl = document.getElementById('log-list');
   const clearLogsEl = document.getElementById('clear-logs');
   const connectionPillEl = document.getElementById('connection-pill');
+  const enrichmentPendingCountEl = document.getElementById('enrichment-pending-count');
+  const enrichmentInProgressCountEl = document.getElementById('enrichment-in-progress-count');
+  const enrichmentBatchSizeEl = document.getElementById('enrichment-batch-size');
+  const runEnrichmentEl = document.getElementById('run-enrichment');
+  const enrichmentProgressEl = document.getElementById('enrichment-progress');
+  const enrichmentProgressTextEl = document.getElementById('enrichment-progress-text');
 
   const state = {
     suburbs: [],
@@ -15,8 +21,23 @@
     status: 'all',
     search: '',
     logs: [],
-    pollingTimer: null
+    pollingTimer: null,
+    enrichment: {
+      counts: null,
+      pollCount: 0,
+      pollTimer: null,
+      running: false,
+      startedAt: 0,
+      trackedSlugs: [],
+      batchSize: 5,
+      pendingBefore: null
+    }
   };
+
+  function asSafeNumber(value, fallback) {
+    const num = typeof value === 'number' ? value : Number(value);
+    return Number.isFinite(num) ? num : fallback;
+  }
 
   function escapeHtml(text) {
     return String(text)
@@ -131,6 +152,27 @@
     return Array.isArray(agencies) ? agencies : [];
   }
 
+  async function loadAgents(suburb) {
+    const params = new URLSearchParams();
+    params.set('suburb', suburb.suburb_name);
+    params.set('limit', '200');
+    const agents = await fetchJson(`/api/agents?${params.toString()}`);
+    return Array.isArray(agents) ? agents : [];
+  }
+
+  function statusPill(status) {
+    if (status === 'complete') return { className: 'statusPill statusPill--good', label: 'complete' };
+    if (status === 'failed') return { className: 'statusPill statusPill--bad', label: 'failed' };
+    if (status === 'in_progress') return { className: 'statusPill statusPill--warn', label: 'in_progress' };
+    if (status === 'skipped') return { className: 'statusPill', label: 'skipped' };
+    return { className: 'statusPill', label: 'pending' };
+  }
+
+  function qualityPill(quality) {
+    if (!quality) return { className: 'qualityPill', label: 'n/a' };
+    return { className: `qualityPill qualityPill--${quality}`, label: String(quality) };
+  }
+
   function renderDetailLoading(suburb, message) {
     const indicator = statusIndicator(suburb.status);
     detailEl.innerHTML = `
@@ -156,6 +198,144 @@
     `;
   }
 
+  function renderEnrichmentPanel() {
+    const counts = state.enrichment.counts;
+    const pending = counts ? asSafeNumber(counts.pending, 0) : 0;
+    const inProgress = counts ? asSafeNumber(counts.in_progress, 0) : 0;
+
+    if (enrichmentPendingCountEl) enrichmentPendingCountEl.textContent = `${pending}`;
+    if (enrichmentInProgressCountEl) enrichmentInProgressCountEl.textContent = `${inProgress}`;
+
+    const running = Boolean(state.enrichment.running);
+    if (runEnrichmentEl) runEnrichmentEl.disabled = running;
+    if (enrichmentBatchSizeEl) enrichmentBatchSizeEl.disabled = running;
+
+    if (enrichmentProgressEl) {
+      enrichmentProgressEl.hidden = !running;
+    }
+    if (enrichmentProgressTextEl) {
+      enrichmentProgressTextEl.textContent = running
+        ? `Enrichment running… pending ${pending} · in_progress ${inProgress}`
+        : 'Enrichment idle';
+    }
+  }
+
+  async function loadEnrichmentCounts() {
+    const data = await fetchJson('/api/agents/enrichment-status');
+    if (!data || typeof data !== 'object') {
+      state.enrichment.counts = null;
+      renderEnrichmentPanel();
+      return;
+    }
+    state.enrichment.counts = data;
+    renderEnrichmentPanel();
+  }
+
+  function stopEnrichmentPolling() {
+    if (state.enrichment.pollTimer) {
+      window.clearInterval(state.enrichment.pollTimer);
+      state.enrichment.pollTimer = null;
+    }
+  }
+
+  async function maybeTrackInProgressAgents(limit) {
+    if (state.enrichment.trackedSlugs.length > 0) return;
+    try {
+      const params = new URLSearchParams();
+      params.set('enrichment_status', 'in_progress');
+      params.set('limit', `${Math.min(Math.max(limit, 1), 50)}`);
+      const agents = await fetchJson(`/api/agents?${params.toString()}`);
+      if (!Array.isArray(agents)) return;
+      state.enrichment.trackedSlugs = agents
+        .map((a) => (a && typeof a.slug === 'string' ? a.slug : null))
+        .filter((s) => Boolean(s));
+    } catch {
+      // Ignore tracking errors.
+    }
+  }
+
+  async function logTrackedAgentResults() {
+    const slugs = state.enrichment.trackedSlugs;
+    if (!Array.isArray(slugs) || slugs.length === 0) return;
+
+    for (const slug of slugs) {
+      try {
+        const agent = await fetchJson(`/api/agents/${encodeURIComponent(slug)}`);
+        const name = `${agent.first_name || ''} ${agent.last_name || ''}`.trim() || slug;
+        const status = agent.enrichment_status || 'pending';
+        const quality = agent.enrichment_quality || null;
+        const type = status === 'complete' ? 'success' : status === 'failed' ? 'error' : 'info';
+        appendUiLog(type, 'enrichment', `${name}: ${status}`, { slug, quality });
+      } catch {
+        appendUiLog('error', 'enrichment', `Failed to load enriched agent`, { slug });
+      }
+    }
+  }
+
+  function startEnrichmentPollingUntilDone(limit) {
+    stopEnrichmentPolling();
+    state.enrichment.pollCount = 0;
+
+    state.enrichment.pollTimer = window.setInterval(async () => {
+      state.enrichment.pollCount += 1;
+      try {
+        await loadEnrichmentCounts();
+        if (state.selectedSlug) await renderDetail();
+
+        const counts = state.enrichment.counts;
+        const inProgress = counts ? asSafeNumber(counts.in_progress, 0) : 0;
+        if (inProgress > 0) {
+          void maybeTrackInProgressAgents(limit);
+        }
+
+        if (state.enrichment.pollCount % 3 === 0) {
+          appendUiLog('info', 'enrichment', 'progress', { in_progress: inProgress });
+        }
+
+        const runningForMs = Date.now() - asSafeNumber(state.enrichment.startedAt, Date.now());
+        const minVisibleMs = 1800;
+        if (state.enrichment.pollCount >= 2 && inProgress === 0 && runningForMs >= minVisibleMs) {
+          stopEnrichmentPolling();
+          state.enrichment.running = false;
+          renderEnrichmentPanel();
+          appendUiLog('success', 'enrichment', 'finished', {});
+          await logTrackedAgentResults();
+          state.enrichment.trackedSlugs = [];
+        }
+      } catch {
+        // Keep polling.
+      }
+    }, 1200);
+  }
+
+  async function triggerEnrichment() {
+    if (state.enrichment.running) return;
+
+    const batchSizeRaw = enrichmentBatchSizeEl ? enrichmentBatchSizeEl.value : `${state.enrichment.batchSize}`;
+    const batchSize = Math.min(Math.max(asSafeNumber(batchSizeRaw, 5), 1), 50);
+    state.enrichment.batchSize = batchSize;
+
+    appendUiLog('info', 'enrichment', 'starting', { limit: batchSize });
+
+    state.enrichment.running = true;
+    state.enrichment.startedAt = Date.now();
+    state.enrichment.trackedSlugs = [];
+    renderEnrichmentPanel();
+
+    try {
+      await fetchJson('/api/enrichment/run', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ limit: batchSize })
+      });
+      startEnrichmentPollingUntilDone(batchSize);
+    } catch (error) {
+      state.enrichment.running = false;
+      renderEnrichmentPanel();
+      appendUiLog('error', 'enrichment', 'failed to start', { error: String(error) });
+    }
+  }
+
   async function renderDetail() {
     const suburb = findSelectedSuburb();
     if (!suburb) {
@@ -167,7 +347,7 @@
       return;
     }
 
-    renderDetailLoading(suburb, 'Loading agencies…');
+    renderDetailLoading(suburb, 'Loading agencies and agents…');
 
     let agencies = [];
     try {
@@ -175,6 +355,14 @@
     } catch (error) {
       agencies = [];
       appendUiLog('error', 'ui', 'Failed to load agencies', { error: String(error) });
+    }
+
+    let agents = [];
+    try {
+      agents = await loadAgents(suburb);
+    } catch (error) {
+      agents = [];
+      appendUiLog('error', 'ui', 'Failed to load agents', { error: String(error) });
     }
 
     const indicator = statusIndicator(suburb.status);
@@ -195,6 +383,35 @@
           </div>
         `
             )
+            .join('')}</div>`;
+
+    const agentsHtml =
+      agents.length === 0
+        ? `<div class="empty"><p class="muted">No agents loaded yet for this suburb.</p></div>`
+        : `<div class="agentList">${agents
+            .map((a) => {
+              const status = statusPill(a.enrichment_status);
+              const quality = qualityPill(a.enrichment_quality);
+              const name = `${a.first_name || ''} ${a.last_name || ''}`.trim() || a.slug;
+              const agency = a.agency_name ? ` · ${a.agency_name}` : '';
+              return `
+                <div class="agentItem">
+                  <div>
+                    <div class="agentItem__nameRow">
+                      <div class="agentItem__name">${escapeHtml(name)}</div>
+                      <div class="${escapeHtml(status.className)}" data-enrichment-status="${escapeHtml(
+                        status.label
+                      )}">${escapeHtml(status.label)}</div>
+                      <div class="${escapeHtml(quality.className)}" data-enrichment-quality="${escapeHtml(
+                        quality.label
+                      )}">${escapeHtml(quality.label)}</div>
+                    </div>
+                    <div class="agentItem__meta">${escapeHtml(a.slug)}${escapeHtml(agency)}</div>
+                  </div>
+                  <div class="agentItem__meta">${escapeHtml(a.primary_suburb || '')}</div>
+                </div>
+              `;
+            })
             .join('')}</div>`;
 
     detailEl.innerHTML = `
@@ -226,6 +443,11 @@
       <div class="section">
         <h4>Agencies</h4>
         ${agenciesHtml}
+      </div>
+
+      <div class="section">
+        <h4>Agents</h4>
+        ${agentsHtml}
       </div>
     `;
 
@@ -410,15 +632,27 @@
       state.logs = [];
       renderLogs();
     });
+
+    if (enrichmentBatchSizeEl) {
+      enrichmentBatchSizeEl.addEventListener('change', () => {
+        state.enrichment.batchSize = Math.min(Math.max(asSafeNumber(enrichmentBatchSizeEl.value, 5), 1), 50);
+      });
+    }
+
+    if (runEnrichmentEl) {
+      runEnrichmentEl.addEventListener('click', () => {
+        void triggerEnrichment();
+      });
+    }
   }
 
   async function init() {
     bindUi();
     connectEvents();
     await loadSuburbs();
+    await loadEnrichmentCounts();
     appendUiLog('info', 'ui', 'Loaded suburbs', { count: state.suburbs.length });
   }
 
   void init();
 })();
-

@@ -1,7 +1,7 @@
 import { Router, type Request, type Response } from 'express';
 
 import type { EnrichmentStatus } from '@/types';
-import { getAgentBySlug, listAgents } from '@/db/queries';
+import { getAgentBySlug, getAgentEnrichmentStatusCounts, listAgents } from '@/db/queries';
 
 interface AgentsQuery {
   agency_id?: string;
@@ -54,6 +54,11 @@ export function createAgentsRouter(): Router {
     res.status(200).json(agents);
   });
 
+  router.get('/enrichment-status', (_req: Request, res: Response) => {
+    const counts = getAgentEnrichmentStatusCounts();
+    res.status(200).json(counts);
+  });
+
   router.get('/:slug', (req: Request, res: Response) => {
     const slug = req.params.slug;
     const agent = getAgentBySlug(slug);
@@ -66,4 +71,3 @@ export function createAgentsRouter(): Router {
 
   return router;
 }
-

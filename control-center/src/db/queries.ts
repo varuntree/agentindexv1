@@ -507,6 +507,54 @@ export interface ListAgentsOptions {
   suburb?: string;
 }
 
+export interface AgentEnrichmentStatusCounts {
+  complete: number;
+  failed: number;
+  in_progress: number;
+  pending: number;
+  skipped: number;
+  total: number;
+}
+
+export function getAgentEnrichmentStatusCounts(): AgentEnrichmentStatusCounts {
+  try {
+    const rows = db
+      .prepare(
+        `
+          SELECT COALESCE(enrichment_status, 'pending') AS status, COUNT(*) AS count
+          FROM agents
+          GROUP BY COALESCE(enrichment_status, 'pending')
+        `
+      )
+      .all() as Array<{ count: number; status: string }>;
+
+    const counts: AgentEnrichmentStatusCounts = {
+      pending: 0,
+      in_progress: 0,
+      complete: 0,
+      failed: 0,
+      skipped: 0,
+      total: 0
+    };
+
+    for (const row of rows) {
+      const count = Number.isFinite(row.count) ? row.count : 0;
+      if (row.status === 'pending') counts.pending += count;
+      else if (row.status === 'in_progress') counts.in_progress += count;
+      else if (row.status === 'complete') counts.complete += count;
+      else if (row.status === 'failed') counts.failed += count;
+      else if (row.status === 'skipped') counts.skipped += count;
+      else counts.pending += count;
+      counts.total += count;
+    }
+
+    return counts;
+  } catch (error) {
+    console.error('[getAgentEnrichmentStatusCounts]', { error });
+    return { pending: 0, in_progress: 0, complete: 0, failed: 0, skipped: 0, total: 0 };
+  }
+}
+
 export function listAgents(options: ListAgentsOptions = {}): Agent[] {
   try {
     const conditions: string[] = [];
