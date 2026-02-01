@@ -249,6 +249,45 @@ export function getAgencyById(id: number): Agency | null {
   }
 }
 
+export interface ListAgenciesOptions {
+  limit?: number;
+  postcode?: string;
+  state?: string;
+  suburb?: string;
+}
+
+export function listAgencies(options: ListAgenciesOptions = {}): Agency[] {
+  try {
+    const conditions: string[] = [];
+    const values: Record<string, unknown> = {};
+
+    if (options.suburb) {
+      conditions.push('suburb = @suburb');
+      values.suburb = options.suburb;
+    }
+    if (options.state) {
+      conditions.push('state = @state');
+      values.state = options.state;
+    }
+    if (options.postcode) {
+      conditions.push('postcode = @postcode');
+      values.postcode = options.postcode;
+    }
+
+    const limit = Math.min(Math.max(options.limit ?? 200, 1), 500);
+    values.limit = limit;
+
+    const where = conditions.length > 0 ? ` WHERE ${conditions.join(' AND ')}` : '';
+    const sql = `SELECT * FROM agencies${where} ORDER BY name ASC LIMIT @limit`;
+
+    const rows = db.prepare(sql).all(values) as AgencyRow[];
+    return rows.map(mapAgencyRow);
+  } catch (error) {
+    console.error('[listAgencies]', { options, error });
+    return [];
+  }
+}
+
 export function getAgencyBySlug(slug: string): Agency | null {
   try {
     const row = db.prepare('SELECT * FROM agencies WHERE slug = ?').get(slug) as AgencyRow | undefined;
@@ -453,6 +492,52 @@ export function getAgentsInSuburb(suburb: string): Agent[] {
     return rows.map(mapAgentRow);
   } catch (error) {
     console.error('[getAgentsInSuburb]', { suburb, error });
+    return [];
+  }
+}
+
+export interface ListAgentsOptions {
+  agencyId?: number;
+  enrichmentStatus?: EnrichmentStatus;
+  limit?: number;
+  suburb?: string;
+}
+
+export function listAgents(options: ListAgentsOptions = {}): Agent[] {
+  try {
+    const conditions: string[] = [];
+    const values: Record<string, unknown> = {};
+
+    if (options.suburb) {
+      conditions.push('(a.primary_suburb = @suburb OR ag.suburb = @suburb)');
+      values.suburb = options.suburb;
+    }
+    if (options.agencyId) {
+      conditions.push('a.agency_id = @agencyId');
+      values.agencyId = options.agencyId;
+    }
+    if (options.enrichmentStatus) {
+      conditions.push('a.enrichment_status = @enrichmentStatus');
+      values.enrichmentStatus = options.enrichmentStatus;
+    }
+
+    const limit = Math.min(Math.max(options.limit ?? 200, 1), 500);
+    values.limit = limit;
+
+    const where = conditions.length > 0 ? ` WHERE ${conditions.join(' AND ')}` : '';
+    const sql = `
+      SELECT a.*, ag.name AS agency_name, ag.slug AS agency_slug
+      FROM agents a
+      LEFT JOIN agencies ag ON a.agency_id = ag.id
+      ${where}
+      ORDER BY a.last_name ASC, a.first_name ASC
+      LIMIT @limit
+    `;
+
+    const rows = db.prepare(sql).all(values) as AgentRow[];
+    return rows.map(mapAgentRow);
+  } catch (error) {
+    console.error('[listAgents]', { options, error });
     return [];
   }
 }

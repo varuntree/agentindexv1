@@ -280,10 +280,15 @@ Expected: Returns 50 (same as control-center)
 ---
 
 ## Step 3: Control Center Server + API Routes
-**Status:** [ ]
+**Status:** [x]
 
 ### What to Build
 Complete Express server with all API routes, proper error handling, logging, and CORS configuration.
+
+### Implementation Notes
+- Implemented manual CORS middleware (no extra dependency).
+- Added structured logger + request logging middleware.
+- Added `listAgencies` / `listAgents` query helpers to support filtered list endpoints.
 
 ### Files to Create/Modify
 
