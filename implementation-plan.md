@@ -32,8 +32,20 @@
 
 ---
 
+## Step 0: Security Cleanup
+**Status:** [x]
+
+### What to Build
+Remove committed secrets and ignore local-only artifacts.
+
+### Implementation Notes
+- Removed tracked `.env.local` containing an API key (do not commit secrets).
+- Added `.gitignore` rules for env files, logs, DB files, and build outputs.
+
+---
+
 ## Step 1: Project Scaffolding
-**Status:** [ ]
+**Status:** [x]
 
 ### What to Build
 Create the complete project structure with both applications, root scripts, and shared configuration.

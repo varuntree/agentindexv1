@@ -349,3 +349,7 @@ Required:
 
 Optional:
 - `DATABASE_PATH` (defaults to `./data/ari.db`)
+
+### Local Env Loading Pattern
+- Control Center: load `../.env` via `dotenv` at startup (e.g. in `control-center/src/index.ts`)
+- SEO Site: load `../.env` in `seo-site/next.config.js` via `dotenv` (Next only auto-loads `.env*` from the app root)
