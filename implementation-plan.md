@@ -835,7 +835,12 @@ Using Playwright MCP:
 ---
 
 ## Step 7: Agent Profile Pages
-**Status:** [ ]
+**Status:** [x]
+
+### Implementation Notes
+- Added `/agent/[slug]` static pages with `generateStaticParams()` backed by SQLite.
+- Implemented agent UI components (header, bio, details, contact, awards, related agents) with graceful fallbacks.
+- Added RealEstateAgent JSON-LD + canonical URLs via `generateMetadata()`.
 
 ### What to Build
 Complete agent profile pages with all sections, schema markup, and proper SEO.

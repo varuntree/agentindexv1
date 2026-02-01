@@ -287,3 +287,43 @@ export function getAgentsByAgency(agencyId: number): Agent[] {
   }
 }
 
+export function getAgentSlugsForBuild(): string[] {
+  try {
+    const rows = db
+      .prepare(
+        `
+          SELECT slug
+          FROM agents
+          WHERE enrichment_status IS NULL OR enrichment_status IN ('pending', 'complete')
+          ORDER BY slug ASC
+        `
+      )
+      .all() as Array<{ slug: string }>;
+    return rows.map((row) => row.slug);
+  } catch (error) {
+    console.error('[getAgentSlugsForBuild]', { error });
+    return [];
+  }
+}
+
+export function getRelatedAgentsInSuburb(suburb: string, excludeSlug: string, limit: number): Agent[] {
+  try {
+    const rows = db
+      .prepare(
+        `
+          SELECT a.*, ag.name AS agency_name, ag.slug AS agency_slug
+          FROM agents a
+          LEFT JOIN agencies ag ON a.agency_id = ag.id
+          WHERE (a.primary_suburb = ? OR ag.suburb = ?)
+            AND a.slug <> ?
+          ORDER BY a.last_name ASC, a.first_name ASC
+          LIMIT ?
+        `
+      )
+      .all(suburb, suburb, excludeSlug, limit) as AgentRow[];
+    return rows.map(mapAgentRow);
+  } catch (error) {
+    console.error('[getRelatedAgentsInSuburb]', { suburb, excludeSlug, limit, error });
+    return [];
+  }
+}
