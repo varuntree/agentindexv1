@@ -142,7 +142,7 @@ Expected: Both respond successfully
 ---
 
 ## Step 2: Database Layer
-**Status:** [ ]
+**Status:** [x]
 
 ### What to Build
 Complete SQLite database with all tables, migrations, query functions, and seed data.
@@ -201,6 +201,11 @@ updateSuburbProgress(suburbSlug: string, data: Partial<ScrapeProgress>): void
 ```
 
 **Seed data:** All 50 Sydney suburbs from SPEC_V1.md with priority tiers.
+
+### Implementation Notes
+- Migrations are tracked via SQLite `PRAGMA user_version` (initial schema version = 1).
+- `scrape_progress.suburb_id` is seeded as the computed slug (e.g. `mosman-nsw-2088`) for a stable unique key.
+- Root `npm run db:migrate` delegates to `control-center` migration runner; `npm run setup` applies schema + seed.
 
 ### Verification
 

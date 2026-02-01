@@ -45,8 +45,10 @@ function main() {
   run('npm', ['install'], path.join(root, 'control-center'));
   run('npm', ['install'], path.join(root, 'seo-site'));
 
+  // Apply schema + seed data
+  run('npm', ['run', 'db:migrate'], path.join(root, 'control-center'));
+
   process.stdout.write('Setup complete.\n');
 }
 
 main();
-

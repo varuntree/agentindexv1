@@ -11,9 +11,11 @@ logs/
 
 # Databases
 data/*.db
+data/*.db-shm
+data/*.db-wal
+data/*.db-journal
 
 # Builds
 control-center/dist/
 seo-site/.next/
 seo-site/out/
-

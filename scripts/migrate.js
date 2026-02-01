@@ -1,21 +1,16 @@
-const fs = require('node:fs');
 const path = require('node:path');
+const { spawnSync } = require('node:child_process');
 
-function ensureDir(dirPath) {
-  if (!fs.existsSync(dirPath)) fs.mkdirSync(dirPath, { recursive: true });
-}
-
-function ensureFile(filePath) {
-  if (!fs.existsSync(filePath)) fs.writeFileSync(filePath, '', 'utf8');
+function run(cmd, args, cwd) {
+  const result = spawnSync(cmd, args, { cwd, stdio: 'inherit', env: process.env });
+  if (result.status !== 0) {
+    throw new Error(`Command failed: ${cmd} ${args.join(' ')}`);
+  }
 }
 
 function main() {
-  const dbPath = process.env.DATABASE_PATH || path.join(process.cwd(), 'data', 'ari.db');
-  ensureDir(path.dirname(dbPath));
-  ensureFile(dbPath);
-  process.stdout.write(`DB ready: ${dbPath}\n`);
-  process.stdout.write('No migrations applied (Step 2 will add schema).\n');
+  const root = process.cwd();
+  run('npm', ['run', 'db:migrate'], path.join(root, 'control-center'));
 }
 
 main();
-

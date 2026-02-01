@@ -13,6 +13,10 @@
     "esModuleInterop": true,
     "module": "ESNext",
     "moduleResolution": "Bundler",
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./*"]
+    },
     "resolveJsonModule": true,
     "isolatedModules": true,
     "jsx": "preserve",
@@ -22,6 +26,18 @@
         "name": "next"
       }
     ]
+  },
+  "ts-node": {
+    "require": ["tsconfig-paths/register"],
+    "compilerOptions": {
+      "esModuleInterop": true,
+      "module": "CommonJS",
+      "moduleResolution": "Node"
+    },
+    "moduleTypes": {
+      "lib/**/*.ts": "cjs",
+      "types/**/*.ts": "cjs"
+    }
   },
   "include": [
     "next-env.d.ts",
