@@ -32,6 +32,13 @@ function buildAwardStrings(agent: Agent): string[] {
     .filter((value): value is string => value.length > 0);
 }
 
+function buildKnowsAbout(agent: Agent): string[] {
+  const values = [...agent.specializations, ...agent.property_types]
+    .map((value) => value.trim())
+    .filter((value) => value.length > 0);
+  return Array.from(new Set(values));
+}
+
 export function AgentSchema({ agent, canonicalUrl }: AgentSchemaProps): JSX.Element {
   const name = `${agent.first_name} ${agent.last_name}`.trim();
 
@@ -62,7 +69,20 @@ export function AgentSchema({ agent, canonicalUrl }: AgentSchemaProps): JSX.Elem
     };
   }
 
+  if (agent.primary_suburb || agent.primary_state) {
+    const areaParts = [agent.primary_suburb, agent.primary_state].filter(isString);
+    if (areaParts.length > 0) {
+      data.areaServed = {
+        '@type': 'Place',
+        name: areaParts.join(', ')
+      };
+    }
+  }
+
   if (agent.languages.length > 0) data.knowsLanguage = agent.languages;
+
+  const knowsAbout = buildKnowsAbout(agent);
+  if (knowsAbout.length > 0) data.knowsAbout = knowsAbout;
 
   const sameAs = buildSameAs(agent);
   if (sameAs.length > 0) data.sameAs = sameAs;

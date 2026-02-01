@@ -8,6 +8,7 @@ import {
   applyEnrichmentTrackingMigration,
   ENRICHMENT_TRACKING_SCHEMA_VERSION
 } from '@/db/migrations/002_add_enrichment_tracking';
+import { applyDemoDataMigration, DEMO_DATA_SCHEMA_VERSION } from '@/db/migrations/003_seed_demo_data';
 import { seedScrapeProgress } from '@/db/seed';
 
 export function getDatabasePath(): string {
@@ -40,12 +41,17 @@ export function migrateDatabase(database: SqliteDatabase): void {
         version = ENRICHMENT_TRACKING_SCHEMA_VERSION;
       }
 
+      if (version < DEMO_DATA_SCHEMA_VERSION) {
+        applyDemoDataMigration(database);
+        version = DEMO_DATA_SCHEMA_VERSION;
+      }
+
       if (version !== getUserVersion(database)) {
         database.pragma(`user_version = ${version}`);
       }
     });
 
-    if (currentVersion < ENRICHMENT_TRACKING_SCHEMA_VERSION) {
+    if (currentVersion < DEMO_DATA_SCHEMA_VERSION) {
       migrate();
     }
   } catch (error) {

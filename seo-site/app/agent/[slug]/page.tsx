@@ -79,24 +79,10 @@ function buildFaqs(agent: Agent): FaqItem[] {
 
   const faqs: FaqItem[] = [];
 
-  if (suburb && state) {
-    faqs.push({
-      question: `Which areas does ${name} service?`,
-      answer: `${name} is listed in ${suburb}, ${state}.`
-    });
-  }
-
-  if (agency) {
-    faqs.push({
-      question: `Which agency does ${name} work with?`,
-      answer: `${name} works with ${agency}.`
-    });
-  }
-
   if (agent.years_experience !== null) {
     faqs.push({
-      question: `How many years of experience does ${name} have?`,
-      answer: `${name} has ${agent.years_experience} year${agent.years_experience === 1 ? '' : 's'} of experience.`
+      question: `How long has ${name} been in real estate?`,
+      answer: `${name} has been in real estate for ${agent.years_experience} year${agent.years_experience === 1 ? '' : 's'}.`
     });
   }
 
@@ -109,8 +95,22 @@ function buildFaqs(agent: Agent): FaqItem[] {
 
   if (agent.specializations.length > 0) {
     faqs.push({
-      question: `What does ${name} specialize in?`,
+      question: `What areas does ${name} specialize in?`,
       answer: `${name} specializes in ${agent.specializations.slice(0, 4).join(', ')}.`
+    });
+  }
+
+  if (suburb && state) {
+    faqs.push({
+      question: `Which areas does ${name} service?`,
+      answer: `${name} is listed in ${suburb}, ${state}.`
+    });
+  }
+
+  if (agency) {
+    faqs.push({
+      question: `Which agency does ${name} work with?`,
+      answer: `${name} works with ${agency}.`
     });
   }
 
@@ -235,4 +235,3 @@ export default function AgentPage({ params }: AgentPageProps): JSX.Element {
     </div>
   );
 }
-

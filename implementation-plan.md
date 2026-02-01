@@ -1604,8 +1604,25 @@ Using Playwright MCP:
 
 ---
 
+## Step 12.5: Seed Demo Enriched Agent Data
+**Status:** [x]
+
+### What to Build
+Provide stable demo agency/agent rows so SEO pages can be verified locally even before running live discovery/enrichment.
+
+### Implementation Notes
+- Added migration `003_seed_demo_data` (schema version 3) that inserts a demo agency plus a small set of demo agents with enriched fields.
+- Wired the migration into the shared DB migration runner so `npm run setup` / `npm run db:migrate` applies it automatically.
+
+---
+
 ## Step 13: Enriched Data in SEO Pages
-**Status:** [ ]
+**Status:** [x]
+
+### Implementation Notes
+- Agent pages already render `enriched_bio`, experience + source, languages, specializations, property types, awards, and LinkedIn when present.
+- FAQs are generated dynamically from the enriched fields and omitted when data is missing.
+- Agent JSON-LD includes `knowsLanguage`, `knowsAbout`, `award`, and `sameAs` when available.
 
 ### What to Build
 Display all enriched data in SEO site pages.

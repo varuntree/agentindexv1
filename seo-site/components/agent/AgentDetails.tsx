@@ -1,4 +1,4 @@
-import type { Agent } from '@/types';
+import type { Agent, YearsExperienceSource } from '@/types';
 
 export interface AgentDetailsProps {
   agent: Agent;
@@ -11,8 +11,26 @@ function formatExperience(agent: Agent): string | null {
   return `${agent.years_experience} years`;
 }
 
+function formatExperienceSource(source: YearsExperienceSource | null): string | null {
+  if (!source) return null;
+
+  switch (source) {
+    case 'linkedin':
+      return 'LinkedIn';
+    case 'agency_website':
+      return 'Agency website';
+    case 'google':
+      return 'Google';
+    case 'inferred':
+      return 'Inferred';
+    default:
+      return null;
+  }
+}
+
 export function AgentDetails({ agent }: AgentDetailsProps): JSX.Element | null {
   const experience = formatExperience(agent);
+  const experienceSource = experience ? formatExperienceSource(agent.years_experience_source) : null;
   const hasDetails =
     Boolean(experience) ||
     agent.languages.length > 0 ||
@@ -29,7 +47,8 @@ export function AgentDetails({ agent }: AgentDetailsProps): JSX.Element | null {
         {experience ? (
           <div>
             <p className="text-sm font-medium text-slate-900">Experience</p>
-            <p className="mt-1 text-sm text-slate-600">{experience}</p>
+            <p className="mt-1 text-sm text-slate-600">{experience} in real estate</p>
+            {experienceSource ? <p className="mt-1 text-xs text-slate-500">Source: {experienceSource}</p> : null}
           </div>
         ) : null}
 
@@ -68,14 +87,9 @@ export function AgentDetails({ agent }: AgentDetailsProps): JSX.Element | null {
         {agent.property_types.length > 0 ? (
           <div>
             <p className="text-sm font-medium text-slate-900">Property types</p>
-            <ul className="mt-1 flex flex-wrap gap-2">
+            <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-slate-600">
               {agent.property_types.map((item) => (
-                <li
-                  key={item}
-                  className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-medium text-slate-700"
-                >
-                  {item}
-                </li>
+                <li key={item}>{item}</li>
               ))}
             </ul>
           </div>
@@ -84,4 +98,3 @@ export function AgentDetails({ agent }: AgentDetailsProps): JSX.Element | null {
     </section>
   );
 }
-
