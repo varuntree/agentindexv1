@@ -16,7 +16,7 @@ export type ScrapeStatus =
   | 'failed'
   | 'abandoned';
 
-export type YearsExperienceSource = 'linkedin' | 'agency_website' | 'inferred';
+export type YearsExperienceSource = 'linkedin' | 'agency_website' | 'google' | 'inferred';
 
 export interface Agency {
   agent_count: number;
@@ -56,6 +56,8 @@ export interface Agent {
   enriched_at: string | null;
   enriched_bio: string | null;
   enrichment_quality: EnrichmentQuality | null;
+  enrichment_error: string | null;
+  enrichment_sources: string[];
   enrichment_status: EnrichmentStatus;
   facebook_url: string | null;
   first_name: string;
@@ -127,6 +129,8 @@ export interface AgentInsert {
   email?: string | null;
   enriched_bio?: string | null;
   enrichment_quality?: EnrichmentQuality | null;
+  enrichment_error?: string | null;
+  enrichment_sources?: string[] | null;
   enrichment_status?: EnrichmentStatus | null;
   facebook_url?: string | null;
   first_name: string;
@@ -155,6 +159,8 @@ export interface EnrichmentData {
   domain_profile_url?: string | null;
   enriched_bio?: string | null;
   enrichment_quality?: EnrichmentQuality | null;
+  enrichment_error?: string | null;
+  enrichment_sources?: string[] | null;
   enrichment_status?: EnrichmentStatus | null;
   facebook_url?: string | null;
   instagram_url?: string | null;
@@ -166,4 +172,3 @@ export interface EnrichmentData {
   years_experience?: number | null;
   years_experience_source?: YearsExperienceSource | null;
 }
-

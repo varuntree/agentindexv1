@@ -1346,8 +1346,18 @@ Using Playwright MCP:
 
 ---
 
+## Step 10.1: DB Migration - Enrichment Tracking Columns
+**Status:** [x]
+
+### What to Build
+Add missing enrichment tracking fields required by the enrichment pipeline spec.
+
+### Implementation Notes
+- Added schema v2 migration to extend `agents` with `enrichment_sources` (JSON array) and `enrichment_error` (string).
+- Updated shared agent types and query mappers to expose these fields and allow `years_experience_source = 'google'`.
+
 ## Step 11: Enrichment Skill (Claude Agent SDK)
-**Status:** [ ]
+**Status:** [x]
 
 ### What to Build
 Complete Claude Agent SDK Enrichment skill that enhances agent profiles via web research.

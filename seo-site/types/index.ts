@@ -16,7 +16,7 @@ export type ScrapeStatus =
   | 'failed'
   | 'abandoned';
 
-export type YearsExperienceSource = 'linkedin' | 'agency_website' | 'inferred';
+export type YearsExperienceSource = 'linkedin' | 'agency_website' | 'google' | 'inferred';
 
 export interface Agency {
   agent_count: number;
@@ -56,6 +56,8 @@ export interface Agent {
   enriched_at: string | null;
   enriched_bio: string | null;
   enrichment_quality: EnrichmentQuality | null;
+  enrichment_error: string | null;
+  enrichment_sources: string[];
   enrichment_status: EnrichmentStatus;
   facebook_url: string | null;
   first_name: string;
@@ -97,4 +99,3 @@ export interface ScrapeProgress {
   suburb_id: string;
   suburb_name: string;
 }
-

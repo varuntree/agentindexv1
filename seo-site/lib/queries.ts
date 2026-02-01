@@ -38,7 +38,9 @@ interface AgentRow {
   email: string | null;
   enriched_at: string | null;
   enriched_bio: string | null;
+  enrichment_error: string | null;
   enrichment_quality: string | null;
+  enrichment_sources: string | null;
   enrichment_status: string | null;
   facebook_url: string | null;
   first_name: string;
@@ -113,7 +115,7 @@ function toEnrichmentQuality(value: string | null): EnrichmentQuality | null {
 }
 
 function toYearsExperienceSource(value: string | null): YearsExperienceSource | null {
-  if (value === 'linkedin' || value === 'agency_website' || value === 'inferred') return value;
+  if (value === 'linkedin' || value === 'agency_website' || value === 'google' || value === 'inferred') return value;
   return null;
 }
 
@@ -177,6 +179,8 @@ function mapAgentRow(row: AgentRow): Agent {
 
     enrichment_status: toEnrichmentStatus(row.enrichment_status),
     enrichment_quality: toEnrichmentQuality(row.enrichment_quality),
+    enrichment_sources: parseJsonArray<string>(row.enrichment_sources),
+    enrichment_error: row.enrichment_error,
 
     created_at: row.created_at,
     updated_at: row.updated_at,

@@ -52,7 +52,9 @@ interface AgentRow {
   email: string | null;
   enriched_at: string | null;
   enriched_bio: string | null;
+  enrichment_error: string | null;
   enrichment_quality: string | null;
+  enrichment_sources: string | null;
   enrichment_status: string | null;
   facebook_url: string | null;
   first_name: string;
@@ -131,7 +133,7 @@ function toEnrichmentQuality(value: string | null): EnrichmentQuality | null {
 }
 
 function toYearsExperienceSource(value: string | null): YearsExperienceSource | null {
-  if (value === 'linkedin' || value === 'agency_website' || value === 'inferred') return value;
+  if (value === 'linkedin' || value === 'agency_website' || value === 'google' || value === 'inferred') return value;
   return null;
 }
 
@@ -195,6 +197,8 @@ function mapAgentRow(row: AgentRow): Agent {
 
     enrichment_status: toEnrichmentStatus(row.enrichment_status),
     enrichment_quality: toEnrichmentQuality(row.enrichment_quality),
+    enrichment_sources: parseJsonArray<string>(row.enrichment_sources),
+    enrichment_error: row.enrichment_error,
 
     created_at: row.created_at,
     updated_at: row.updated_at,
@@ -565,10 +569,11 @@ export function getAgentsPendingEnrichment(limit: number): Agent[] {
   try {
     const rows = db
       .prepare(`
-        SELECT *
-        FROM agents
-        WHERE enrichment_status = 'pending'
-        ORDER BY created_at ASC
+        SELECT a.*, ag.name AS agency_name, ag.slug AS agency_slug
+        FROM agents a
+        LEFT JOIN agencies ag ON a.agency_id = ag.id
+        WHERE a.enrichment_status = 'pending'
+        ORDER BY a.created_at ASC
         LIMIT ?
       `)
       .all(limit) as AgentRow[];
@@ -730,6 +735,7 @@ export function updateAgent(id: number, data: Partial<Agent>): void {
     if ('specializations' in data && data.specializations) normalized.specializations = toJson(data.specializations);
     if ('property_types' in data && data.property_types) normalized.property_types = toJson(data.property_types);
     if ('awards' in data && data.awards) normalized.awards = toJson(data.awards);
+    if ('enrichment_sources' in data && data.enrichment_sources) normalized.enrichment_sources = toJson(data.enrichment_sources);
 
     runUpdateById(
       db,
@@ -764,6 +770,8 @@ export function updateAgent(id: number, data: Partial<Agent>): void {
         'domain_profile_url',
         'enrichment_status',
         'enrichment_quality',
+        'enrichment_sources',
+        'enrichment_error',
         'api_fetched_at',
         'enriched_at'
       ],
@@ -794,6 +802,8 @@ export function updateAgentEnrichment(id: number, enrichment: EnrichmentData): v
         domain_profile_url = @domain_profile_url,
         enrichment_status = @enrichment_status,
         enrichment_quality = @enrichment_quality,
+        enrichment_sources = @enrichment_sources,
+        enrichment_error = @enrichment_error,
         enriched_at = CURRENT_TIMESTAMP,
         updated_at = CURRENT_TIMESTAMP
       WHERE id = @id
@@ -815,7 +825,9 @@ export function updateAgentEnrichment(id: number, enrichment: EnrichmentData): v
       personal_website_url: enrichment.personal_website_url ?? null,
       domain_profile_url: enrichment.domain_profile_url ?? null,
       enrichment_status: enrichment.enrichment_status ?? 'complete',
-      enrichment_quality: enrichment.enrichment_quality ?? null
+      enrichment_quality: enrichment.enrichment_quality ?? null,
+      enrichment_sources: toJson(enrichment.enrichment_sources ?? []),
+      enrichment_error: enrichment.enrichment_error ?? null
     });
   } catch (error) {
     console.error('[updateAgentEnrichment]', { id, error });
