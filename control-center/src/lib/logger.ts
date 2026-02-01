@@ -1,3 +1,5 @@
+import { publishActivityEvent } from '@/lib/activity-events';
+
 type LogLevel = 'INFO' | 'WARN' | 'ERROR';
 
 export interface LogContext {
@@ -14,6 +16,17 @@ function serializeContext(context: LogContext | undefined): string {
 function write(level: LogLevel, route: string, message: string, context?: LogContext): void {
   const timestamp = new Date().toISOString();
   const line = `[${timestamp}] [${level}] [${route}] ${message}${serializeContext(context)}\n`;
+
+  try {
+    publishActivityEvent({
+      type: level === 'ERROR' ? 'error' : 'info',
+      route,
+      message,
+      context
+    });
+  } catch {
+    // Avoid breaking logging if the activity stream fails.
+  }
 
   if (level === 'ERROR') {
     process.stderr.write(line);
@@ -39,4 +52,3 @@ export const logger: Logger = {
     write('ERROR', route, message, context);
   }
 };
-

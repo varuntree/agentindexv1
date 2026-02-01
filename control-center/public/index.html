@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>ARI Control Center</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <header class="header">
+      <div class="container header__inner">
+        <div class="header__title">
+          <div class="logo">ARI</div>
+          <div>
+            <h1>Control Center</h1>
+            <p class="muted">Discovery pipeline (local)</p>
+          </div>
+        </div>
+        <div class="header__meta">
+          <span class="pill" id="connection-pill">Connecting…</span>
+          <a class="pill pill--link" href="/health" target="_blank" rel="noreferrer">Health</a>
+        </div>
+      </div>
+    </header>
+
+    <main class="container main">
+      <section class="panel">
+        <div class="panel__header">
+          <h2>Suburbs</h2>
+          <div class="panel__headerRight">
+            <span class="muted" id="suburb-count">0</span>
+          </div>
+        </div>
+
+        <div class="filters">
+          <div class="filterRow">
+            <div class="segmented" role="group" aria-label="Priority tier filter">
+              <button class="segmented__btn is-active" data-tier="all" type="button">All</button>
+              <button class="segmented__btn" data-tier="1" type="button">Tier 1</button>
+              <button class="segmented__btn" data-tier="2" type="button">Tier 2</button>
+              <button class="segmented__btn" data-tier="3" type="button">Tier 3</button>
+            </div>
+          </div>
+
+          <div class="filterRow">
+            <label class="field">
+              <span class="field__label">Status</span>
+              <select id="status-filter" class="field__control">
+                <option value="all">All</option>
+                <option value="pending">pending</option>
+                <option value="in_progress">in_progress</option>
+                <option value="discovered">discovered</option>
+                <option value="complete">complete</option>
+                <option value="failed">failed</option>
+                <option value="abandoned">abandoned</option>
+              </select>
+            </label>
+
+            <label class="field">
+              <span class="field__label">Search</span>
+              <input id="search-input" class="field__control" placeholder="e.g. Mosman" autocomplete="off" />
+            </label>
+          </div>
+        </div>
+
+        <div class="list" id="suburb-list" role="list"></div>
+      </section>
+
+      <section class="panel">
+        <div class="panel__header">
+          <h2>Selected suburb</h2>
+        </div>
+
+        <div class="detail" id="detail">
+          <div class="empty">
+            <p class="muted">Select a suburb from the list to view details.</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel panel--logs">
+        <div class="panel__header">
+          <h2>Activity</h2>
+          <div class="panel__headerRight">
+            <button class="btn btn--ghost" id="clear-logs" type="button">Clear</button>
+          </div>
+        </div>
+        <div class="logs" id="log-list" aria-live="polite"></div>
+      </section>
+    </main>
+
+    <script src="/app.js" defer></script>
+  </body>
+</html>
+

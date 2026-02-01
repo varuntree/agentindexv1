@@ -565,7 +565,12 @@ Expected: Returns running status, then agencies appear in DB
 ---
 
 ## Step 5: Control Center UI - Discovery
-**Status:** [ ]
+**Status:** [x]
+
+### Implementation Notes
+- Served static UI from `control-center/public/` with a simple 3-panel layout (suburbs, details, activity log).
+- Added SSE endpoint `GET /api/events` and wired server logging to stream events in real time.
+- UI polls selected suburb status after triggering discovery to update counts/status without blocking the API.
 
 ### What to Build
 Complete web UI for the Control Center with suburb selection, discovery triggering, real-time logs, and results display.

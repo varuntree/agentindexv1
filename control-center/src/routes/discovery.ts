@@ -2,6 +2,7 @@ import { Router, type Request, type Response } from 'express';
 
 import { runDiscovery } from '@/skills/discovery';
 import { logger } from '@/lib/logger';
+import { publishActivityEvent } from '@/lib/activity-events';
 
 interface DiscoveryRunBody {
   dryRun?: unknown;
@@ -23,12 +24,31 @@ export function createDiscoveryRouter(): Router {
       return;
     }
 
+    publishActivityEvent({
+      type: 'info',
+      route: 'discovery',
+      message: 'started',
+      context: { suburb, state, dryRun }
+    });
+
     void runDiscovery({ suburb, state, dryRun })
       .then((result) => {
         logger.info('POST /api/discovery/run', 'finished', result);
+        publishActivityEvent({
+          type: result.status === 'complete' ? 'success' : 'info',
+          route: 'discovery',
+          message: 'finished',
+          context: result
+        });
       })
       .catch((error: unknown) => {
         logger.error('POST /api/discovery/run', 'failed', { suburb, state, error });
+        publishActivityEvent({
+          type: 'error',
+          route: 'discovery',
+          message: 'failed',
+          context: { suburb, state, error: error instanceof Error ? error.message : String(error) }
+        });
       });
 
     res.status(202).json({

@@ -1,3 +1,6 @@
+import path from 'node:path';
+import process from 'node:process';
+
 import { type Express, type NextFunction, type Request, type Response } from 'express';
 import express from 'express';
 
@@ -41,10 +44,20 @@ export function createServer(): Express {
   app.use(corsMiddleware);
   app.use(requestLoggingMiddleware);
 
+  app.get('/favicon.ico', (_req: Request, res: Response) => {
+    res.status(204).end();
+  });
+
+  app.use(
+    express.static(path.resolve(process.cwd(), 'public'), {
+      index: 'index.html',
+      maxAge: 0
+    })
+  );
+
   app.use(createRootRouter());
 
   app.use(errorHandler);
 
   return app;
 }
-

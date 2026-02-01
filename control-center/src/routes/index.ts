@@ -4,6 +4,7 @@ import { createAgenciesRouter } from '@/routes/agencies';
 import { createAgentsRouter } from '@/routes/agents';
 import { createDiscoveryRouter } from '@/routes/discovery';
 import { createEnrichmentRouter } from '@/routes/enrichment';
+import { createEventsRouter } from '@/routes/events';
 import { createHealthRouter } from '@/routes/health';
 import { createSuburbsRouter } from '@/routes/suburbs';
 
@@ -15,6 +16,7 @@ function createApiRouter(): Router {
   apiRouter.use('/agents', createAgentsRouter());
   apiRouter.use('/discovery', createDiscoveryRouter());
   apiRouter.use('/enrichment', createEnrichmentRouter());
+  apiRouter.use('/events', createEventsRouter());
 
   apiRouter.use((_req: Request, res: Response) => {
     res.status(404).json({ error: 'Not found' });
@@ -26,14 +28,8 @@ function createApiRouter(): Router {
 export function createRootRouter(): Router {
   const router = Router();
 
-  router.get('/', (_req: Request, res: Response) => {
-    res.setHeader('Content-Type', 'text/html; charset=utf-8');
-    res.status(200).send('<!doctype html><html><body><h1>ARI Control Center</h1></body></html>');
-  });
-
   router.use('/health', createHealthRouter());
   router.use('/api', createApiRouter());
 
   return router;
 }
-
