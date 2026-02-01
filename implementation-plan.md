@@ -1105,8 +1105,20 @@ Using Playwright MCP:
 
 ---
 
+## Step 8.5: Agents-in Routing Constraint
+**Status:** [x]
+
+### What to Build
+Resolve the Next.js App Router constraint that prevents having two sibling dynamic segments under `agents-in/`.
+
+### Implementation Notes
+- Suburb pages use `seo-site/app/agents-in/[slug]/page.tsx`.
+- State pages must be implemented as **static** routes (e.g. `seo-site/app/agents-in/nsw/page.tsx`) to avoid conflicting with `[slug]`.
+
+---
+
 ## Step 9: Suburb Listing Pages
-**Status:** [ ]
+**Status:** [x]
 
 ### What to Build
 Complete suburb pages showing all agents and agencies in a suburb.
@@ -1240,8 +1252,14 @@ Complete state pages showing all suburbs in that state.
 ```
 seo-site/app/
 ├── agents-in/
-│   └── [state]/
-│       └── page.tsx          # State listing page
+│   ├── nsw/page.tsx          # State listing page
+│   ├── vic/page.tsx
+│   ├── qld/page.tsx
+│   ├── sa/page.tsx
+│   ├── wa/page.tsx
+│   ├── tas/page.tsx
+│   ├── act/page.tsx
+│   └── nt/page.tsx
 
 seo-site/components/
 ├── state/
@@ -1267,6 +1285,8 @@ seo-site/components/
 - vic → Victoria
 - qld → Queensland
 - etc.
+
+**Routing Note:** `/agents-in/[slug]` is used for suburb pages, so state pages must be static routes under `agents-in/{stateSlug}/page.tsx`.
 
 ### Verification
 

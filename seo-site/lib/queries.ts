@@ -245,6 +245,18 @@ export function getAgenciesInSuburb(suburb: string): Agency[] {
   }
 }
 
+export function getAgenciesInSuburbAndState(suburb: string, state: string): Agency[] {
+  try {
+    const rows = db
+      .prepare('SELECT * FROM agencies WHERE suburb = ? AND state = ? ORDER BY name ASC')
+      .all(suburb, state) as AgencyRow[];
+    return rows.map(mapAgencyRow);
+  } catch (error) {
+    console.error('[getAgenciesInSuburbAndState]', { suburb, state, error });
+    return [];
+  }
+}
+
 export function getAgentBySlug(slug: string): Agent | null {
   try {
     const row = db
@@ -277,6 +289,26 @@ export function getAgentsInSuburb(suburb: string): Agent[] {
     return rows.map(mapAgentRow);
   } catch (error) {
     console.error('[getAgentsInSuburb]', { suburb, error });
+    return [];
+  }
+}
+
+export function getAgentsInSuburbAndState(suburb: string, state: string): Agent[] {
+  try {
+    const rows = db
+      .prepare(
+        `
+          SELECT a.*, ag.name AS agency_name, ag.slug AS agency_slug
+          FROM agents a
+          LEFT JOIN agencies ag ON a.agency_id = ag.id
+          WHERE a.primary_suburb = ? AND a.primary_state = ?
+          ORDER BY a.last_name ASC, a.first_name ASC
+        `
+      )
+      .all(suburb, state) as AgentRow[];
+    return rows.map(mapAgentRow);
+  } catch (error) {
+    console.error('[getAgentsInSuburbAndState]', { suburb, state, error });
     return [];
   }
 }
