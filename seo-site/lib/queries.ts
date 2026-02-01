@@ -233,6 +233,18 @@ export function getAgencyBySlug(slug: string): Agency | null {
   }
 }
 
+export function getAgenciesInSuburb(suburb: string): Agency[] {
+  try {
+    const rows = db
+      .prepare('SELECT * FROM agencies WHERE suburb = ? ORDER BY name ASC')
+      .all(suburb) as AgencyRow[];
+    return rows.map(mapAgencyRow);
+  } catch (error) {
+    console.error('[getAgenciesInSuburb]', { suburb, error });
+    return [];
+  }
+}
+
 export function getAgentBySlug(slug: string): Agent | null {
   try {
     const row = db
@@ -283,6 +295,24 @@ export function getAgentsByAgency(agencyId: number): Agent[] {
     return rows.map(mapAgentRow);
   } catch (error) {
     console.error('[getAgentsByAgency]', { agencyId, error });
+    return [];
+  }
+}
+
+export function getAgencySlugsForBuild(): string[] {
+  try {
+    const rows = db
+      .prepare(
+        `
+          SELECT slug
+          FROM agencies
+          ORDER BY slug ASC
+        `
+      )
+      .all() as Array<{ slug: string }>;
+    return rows.map((row) => row.slug);
+  } catch (error) {
+    console.error('[getAgencySlugsForBuild]', { error });
     return [];
   }
 }

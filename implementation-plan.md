@@ -993,7 +993,12 @@ Using Playwright MCP:
 ---
 
 ## Step 8: Agency Pages
-**Status:** [ ]
+**Status:** [x]
+
+### Implementation Notes
+- Implemented `/agency/[slug]` SSG pages with `generateStaticParams()` backed by SQLite.
+- Added agency UI components (header, contact/about, team roster) + "Other agencies" section.
+- Added `RealEstateAgency` JSON-LD and canonical URLs; page title relies on the global `'%s | ARI'` template.
 
 ### What to Build
 Complete agency pages showing agency info and full agent roster.
