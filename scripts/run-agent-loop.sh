@@ -5,12 +5,50 @@
 
 set -e
 
+# Usage function
+usage() {
+    echo "Usage: $0 [-n|--iterations <number>] [-h|--help]"
+    echo ""
+    echo "Options:"
+    echo "  -n, --iterations    Maximum number of iterations (default: 100)"
+    echo "  -h, --help          Show this help message"
+    echo ""
+    echo "Examples:"
+    echo "  $0                  # Run with default 100 iterations"
+    echo "  $0 -n 50            # Run with 50 iterations"
+    echo "  $0 --iterations 25  # Run with 25 iterations"
+    exit 0
+}
+
 # Configuration
 MODEL="gpt-5.2"
 REASONING_EFFORT="high"
 PROMPT_FILE="prompt.md"
-MAX_ITERATIONS=100  # Safety limit
+MAX_ITERATIONS=100  # Default safety limit
 LOG_DIR="logs"
+
+# Parse command line arguments
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        -n|--iterations)
+            MAX_ITERATIONS="$2"
+            shift 2
+            ;;
+        -h|--help)
+            usage
+            ;;
+        *)
+            echo "Unknown option: $1"
+            usage
+            ;;
+    esac
+done
+
+# Validate MAX_ITERATIONS is a positive integer
+if ! [[ "$MAX_ITERATIONS" =~ ^[0-9]+$ ]] || [ "$MAX_ITERATIONS" -lt 1 ]; then
+    echo "Error: iterations must be a positive integer"
+    exit 1
+fi
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
 LOG_FILE="$LOG_DIR/agent_run_$TIMESTAMP.log"
 
