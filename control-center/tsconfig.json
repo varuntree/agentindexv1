@@ -14,6 +14,7 @@
     "types": ["node"]
   },
   "ts-node": {
+    "transpileOnly": true,
     "require": ["tsconfig-paths/register"],
     "compilerOptions": {
       "esModuleInterop": true,

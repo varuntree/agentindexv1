@@ -401,7 +401,13 @@ Expected: Shows Access-Control-Allow-Origin header
 ---
 
 ## Step 4: Discovery Skill (Claude Agent SDK)
-**Status:** [ ]
+**Status:** [x]
+
+### Implementation Notes
+- Implemented `runDiscovery()` using `@anthropic-ai/claude-agent-sdk` with JSON Schema structured output.
+- Added deterministic fixture fallback when `ANTHROPIC_API_KEY` is not set (still updates DB + progress for local testing).
+- Added token/cost tracking (tokens always tracked; optional cost estimate via env pricing vars).
+- Wired `/api/discovery/run` to start discovery asynchronously and return `202` with `{ status: "running" }`.
 
 ### What to Build
 Complete Claude Agent SDK Discovery skill that finds agencies and agents for a given suburb via web research.

@@ -50,6 +50,10 @@ npm run test:db       # Database schema/queries
 npm run test:build    # Next.js build verification
 ```
 
+Notes:
+- `control-center` is configured with `ts-node` `transpileOnly` so `npx ts-node -e "..."` one-liners don’t fail on strict type-checking.
+- Some shell snippets in this repo assume `bash`; if a snippet fails under `zsh`, run it via `bash -lc '...'`.
+
 ### Server for Testing
 ```bash
 # Start, test, kill pattern
