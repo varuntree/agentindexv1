@@ -32,6 +32,30 @@
 
 ---
 
+## Current Status (Synced)
+
+- Last verified: 2026-02-01 (local)
+- Commands: `npm run setup`, `npm test`
+- UI/page spot-checks: Playwright screenshots saved in `logs/`
+- Git HEAD: `8f79103` (Complete Step 16: Full Regression Verification)
+- Step completion commits:
+  - Step 1: `8b07cdc`
+  - Step 2: `f291463`
+  - Step 3: `1a89bb2`
+  - Step 4: `8fbebbf`
+  - Step 5: `1de6af8`
+  - Step 6: `ea944c3`
+  - Step 7: `a15c874`
+  - Step 8: `bf3c4d2`
+  - Step 9: `24ac463`
+  - Step 10: `2e4c7ce`
+  - Step 11: `e26877c`
+  - Step 12: `76e6db9`
+  - Step 13: `bf3a58b`
+  - Step 14: `88627b1`
+  - Step 15: `d4ddee5`
+  - Step 16: `8f79103` (duplicate earlier commit: `20cc398`)
+
 ## Step 0: Security Cleanup
 **Status:** [x]
 
@@ -66,14 +90,14 @@ ari/
 │   ├── package.json
 │   ├── tsconfig.json
 │   └── src/
-│       └── index.ts          # Entry point (placeholder)
+│       └── index.ts          # Entry point
 └── seo-site/
     ├── package.json
     ├── tsconfig.json
     ├── next.config.js
     └── app/
         ├── layout.tsx
-        └── page.tsx          # Homepage placeholder
+        └── page.tsx          # Homepage
 ```
 
 ### Implementation Details
@@ -133,11 +157,11 @@ kill %1
 Expected: Both respond successfully
 
 ### Pass Criteria
-- [ ] `npm run setup` completes without error
-- [ ] `npm run dev` starts both servers
-- [ ] localhost:3000 responds (SEO Site)
-- [ ] localhost:3001 responds (Control Center)
-- [ ] All files exist as specified
+- [x] `npm run setup` completes without error
+- [x] `npm run dev` starts both servers
+- [x] localhost:3000 responds (SEO Site)
+- [x] localhost:3001 responds (Control Center)
+- [x] All files exist as specified
 
 ---
 
@@ -270,12 +294,12 @@ console.log('Count:', getAllSuburbs().length);
 Expected: Returns 50 (same as control-center)
 
 ### Pass Criteria
-- [ ] Database file exists at `data/ari.db`
-- [ ] All three tables created with correct schema
-- [ ] 50 suburbs seeded with priority tiers
-- [ ] All query functions work (insert, select, update)
-- [ ] SEO site can read from same database
-- [ ] TypeScript interfaces match database schema
+- [x] Database file exists at `data/ari.db`
+- [x] All three tables created with correct schema
+- [x] 50 suburbs seeded with priority tiers
+- [x] All query functions work (insert, select, update)
+- [x] SEO site can read from same database
+- [x] TypeScript interfaces match database schema
 
 ---
 
@@ -302,8 +326,8 @@ control-center/src/
 │   ├── suburbs.ts            # Suburb listing/status
 │   ├── agencies.ts           # Agency CRUD
 │   ├── agents.ts             # Agent CRUD
-│   ├── discovery.ts          # Discovery trigger (placeholder)
-│   └── enrichment.ts         # Enrichment trigger (placeholder)
+│   ├── discovery.ts          # Discovery trigger (async)
+│   └── enrichment.ts         # Enrichment trigger (async)
 ├── lib/
 │   └── logger.ts             # Structured logging
 └── middleware/
@@ -321,8 +345,8 @@ GET  /api/agencies            → List agencies (with filters)
 GET  /api/agencies/:slug      → Single agency with agents
 GET  /api/agents              → List agents (with filters)
 GET  /api/agents/:slug        → Single agent details
-POST /api/discovery/run       → Trigger discovery (placeholder, returns mock)
-POST /api/enrichment/run      → Trigger enrichment (placeholder, returns mock)
+POST /api/discovery/run       → Trigger discovery (async; returns 202)
+POST /api/enrichment/run      → Trigger enrichment (async; returns 202)
 ```
 
 **Logging format:**
@@ -360,7 +384,7 @@ kill %1
 ```
 Expected: Returns "Mosman"
 
-**V3.4: Discovery placeholder responds**
+**V3.4: Discovery endpoint responds**
 ```bash
 npm run dev:control &
 sleep 3
@@ -369,7 +393,7 @@ curl -s -X POST http://localhost:3001/api/discovery/run \
   -d '{"suburb":"Mosman","state":"NSW"}' | jq '.status'
 kill %1
 ```
-Expected: Returns "pending" or similar placeholder
+Expected: Returns "running"
 
 **V3.5: Error handling works**
 ```bash
@@ -390,13 +414,13 @@ kill %1
 Expected: Shows Access-Control-Allow-Origin header
 
 ### Pass Criteria
-- [ ] Server starts on port 3001
-- [ ] Health endpoint responds
-- [ ] All suburb endpoints work with real data
-- [ ] Placeholder discovery/enrichment endpoints respond
-- [ ] Errors return JSON, not crashes
-- [ ] CORS configured
-- [ ] Logging shows requests in console
+- [x] Server starts on port 3001
+- [x] Health endpoint responds
+- [x] All suburb endpoints work with real data
+- [x] Discovery/enrichment endpoints respond (202 Accepted)
+- [x] Errors return JSON, not crashes
+- [x] CORS configured
+- [x] Logging shows requests in console
 
 ---
 
@@ -553,14 +577,14 @@ kill %1
 Expected: Returns running status, then agencies appear in DB
 
 ### Pass Criteria
-- [ ] Discovery skill executes without errors
-- [ ] Finds at least 3 agencies per suburb
-- [ ] Finds at least 10 agents per suburb
-- [ ] All required fields populated
-- [ ] photo_url values are valid URLs (verified with HTTP request)
-- [ ] Suburb progress tracking updated
-- [ ] API endpoint triggers skill correctly
-- [ ] Cost tracking logs API usage
+- [x] Discovery skill executes without errors
+- [x] Finds at least 3 agencies per suburb
+- [x] Finds at least 10 agents per suburb
+- [x] All required fields populated
+- [x] photo_url values are valid URLs (verified with HTTP request)
+- [x] Suburb progress tracking updated
+- [x] API endpoint triggers skill correctly
+- [x] Cost tracking logs API usage
 
 ---
 
@@ -696,15 +720,15 @@ kill %1
 Expected: Returns event stream format
 
 ### Pass Criteria
-- [ ] UI loads at localhost:3001
-- [ ] All 50 suburbs displayed with correct status
-- [ ] Filtering by tier works
-- [ ] Search by name works
-- [ ] Clicking suburb shows detail panel
-- [ ] Run Discovery button triggers discovery
-- [ ] Activity log streams real-time
-- [ ] Status indicators update after discovery
-- [ ] All Playwright MCP tests pass with screenshots
+- [x] UI loads at localhost:3001
+- [x] All 50 suburbs displayed with correct status
+- [x] Filtering by tier works
+- [x] Search by name works
+- [x] Clicking suburb shows detail panel
+- [x] Run Discovery button triggers discovery
+- [x] Activity log streams real-time
+- [x] Status indicators update after discovery
+- [x] All Playwright MCP tests pass with screenshots
 
 ---
 
@@ -823,14 +847,14 @@ Using Playwright MCP:
 ```
 
 ### Pass Criteria
-- [ ] Dev server runs on port 3000
-- [ ] Homepage renders with all sections
-- [ ] Database queries work
-- [ ] Header and footer on all pages
-- [ ] 404 page exists
-- [ ] Mobile responsive
-- [ ] Tailwind CSS working
-- [ ] All Playwright MCP tests pass
+- [x] Dev server runs on port 3000
+- [x] Homepage renders with all sections
+- [x] Database queries work
+- [x] Header and footer on all pages
+- [x] 404 page exists
+- [x] Mobile responsive
+- [x] Tailwind CSS working
+- [x] All Playwright MCP tests pass
 
 ---
 
@@ -980,15 +1004,15 @@ Using Playwright MCP:
 ```
 
 ### Pass Criteria
-- [ ] Build succeeds with agent pages
-- [ ] All page sections render correctly
-- [ ] Schema markup (JSON-LD) present
-- [ ] Meta title and description correct
-- [ ] Photos display correctly
-- [ ] Related agents section works
-- [ ] Links navigate correctly
-- [ ] Mobile responsive
-- [ ] All Playwright MCP tests pass
+- [x] Build succeeds with agent pages
+- [x] All page sections render correctly
+- [x] Schema markup (JSON-LD) present
+- [x] Meta title and description correct
+- [x] Photos display correctly
+- [x] Related agents section works
+- [x] Links navigate correctly
+- [x] Mobile responsive
+- [x] All Playwright MCP tests pass
 
 ---
 
@@ -1094,14 +1118,14 @@ Using Playwright MCP:
 ```
 
 ### Pass Criteria
-- [ ] Build succeeds with agency pages
-- [ ] Agency info displays correctly
-- [ ] Agent roster shows all agents
-- [ ] Agent cards link correctly
-- [ ] Schema markup present
-- [ ] Other agencies section works
-- [ ] Mobile responsive
-- [ ] All Playwright MCP tests pass
+- [x] Build succeeds with agency pages
+- [x] Agency info displays correctly
+- [x] Agent roster shows all agents
+- [x] Agent cards link correctly
+- [x] Schema markup present
+- [x] Other agencies section works
+- [x] Mobile responsive
+- [x] All Playwright MCP tests pass
 
 ---
 
@@ -1229,15 +1253,15 @@ Using Playwright MCP:
 ```
 
 ### Pass Criteria
-- [ ] Build succeeds with suburb pages
-- [ ] Agent count correct
-- [ ] All agents displayed
-- [ ] All agencies displayed
-- [ ] Filters work (client-side)
-- [ ] Schema markup present
-- [ ] FAQs generated
-- [ ] Mobile responsive
-- [ ] All Playwright MCP tests pass
+- [x] Build succeeds with suburb pages
+- [x] Agent count correct
+- [x] All agents displayed
+- [x] All agencies displayed
+- [x] Filters work (client-side)
+- [x] Schema markup present
+- [x] FAQs generated
+- [x] Mobile responsive
+- [x] All Playwright MCP tests pass
 
 ---
 
@@ -1336,13 +1360,13 @@ Using Playwright MCP:
 ```
 
 ### Pass Criteria
-- [ ] Build succeeds with state pages
-- [ ] All suburbs displayed with counts
-- [ ] Regional grouping works
-- [ ] Links to suburb pages work
-- [ ] Schema markup present
-- [ ] Mobile responsive
-- [ ] All Playwright MCP tests pass
+- [x] Build succeeds with state pages
+- [x] All suburbs displayed with counts
+- [x] Regional grouping works
+- [x] Links to suburb pages work
+- [x] Schema markup present
+- [x] Mobile responsive
+- [x] All Playwright MCP tests pass
 
 ---
 
@@ -1500,14 +1524,14 @@ kill %1
 Expected: Returns running/success status
 
 ### Pass Criteria
-- [ ] Enrichment skill executes without errors
-- [ ] Agents get enriched data
-- [ ] years_experience is plausible (0-50)
-- [ ] languages NOT assumed from names
-- [ ] enriched_bio is coherent and professional
-- [ ] All sources tracked
-- [ ] API endpoint works
-- [ ] Constraint validation passes
+- [x] Enrichment skill executes without errors
+- [x] Agents get enriched data
+- [x] years_experience is plausible (0-50)
+- [x] languages NOT assumed from names
+- [x] enriched_bio is coherent and professional
+- [x] All sources tracked
+- [x] API endpoint works
+- [x] Constraint validation passes
 
 ---
 
@@ -1593,14 +1617,14 @@ Using Playwright MCP:
 ```
 
 ### Pass Criteria
-- [ ] Enrichment panel displays correctly
-- [ ] Pending count accurate
-- [ ] Run Enrichment button works
-- [ ] Progress displayed during enrichment
-- [ ] Agent enrichment status shown
-- [ ] Quality indicators work
-- [ ] Activity log shows enrichment events
-- [ ] All Playwright MCP tests pass
+- [x] Enrichment panel displays correctly
+- [x] Pending count accurate
+- [x] Run Enrichment button works
+- [x] Progress displayed during enrichment
+- [x] Agent enrichment status shown
+- [x] Quality indicators work
+- [x] Activity log shows enrichment events
+- [x] All Playwright MCP tests pass
 
 ---
 
@@ -1729,15 +1753,15 @@ Using Playwright MCP:
 ```
 
 ### Pass Criteria
-- [ ] Enriched bio displays when available
-- [ ] Experience displays with years
-- [ ] Languages display as tags
-- [ ] Specializations display
-- [ ] Awards display with details
-- [ ] FAQs generated from actual data
-- [ ] Schema markup includes enriched data
-- [ ] Missing data handled gracefully (no empty sections)
-- [ ] All Playwright MCP tests pass
+- [x] Enriched bio displays when available
+- [x] Experience displays with years
+- [x] Languages display as tags
+- [x] Specializations display
+- [x] Awards display with details
+- [x] FAQs generated from actual data
+- [x] Schema markup includes enriched data
+- [x] Missing data handled gracefully (no empty sections)
+- [x] All Playwright MCP tests pass
 
 ---
 
@@ -1864,14 +1888,14 @@ Using Playwright MCP:
 ```
 
 ### Pass Criteria
-- [ ] Dashboard shows accurate summary
-- [ ] Multi-suburb selection works
-- [ ] Batch operations work
-- [ ] Status filtering works
-- [ ] Error handling with retry
-- [ ] Activity log filtering
-- [ ] Responsive design
-- [ ] All Playwright MCP tests pass
+- [x] Dashboard shows accurate summary
+- [x] Multi-suburb selection works
+- [x] Batch operations work
+- [x] Status filtering works
+- [x] Error handling with retry
+- [x] Activity log filtering
+- [x] Responsive design
+- [x] All Playwright MCP tests pass
 
 ---
 
@@ -2104,15 +2128,15 @@ echo "Expected static pages: $expected"
 Expected: Page counts approximately match database counts
 
 ### Pass Criteria
-- [ ] Fresh suburb discovery → enrichment → display works
-- [ ] Navigation flow works end-to-end
-- [ ] Data counts consistent between DB and pages
-- [ ] All internal links work (no 404s)
-- [ ] Schema markup on all page types
-- [ ] Meta descriptions on all pages
-- [ ] Mobile responsive throughout
-- [ ] Build generates correct page counts
-- [ ] All Playwright MCP tests pass
+- [x] Fresh suburb discovery → enrichment → display works
+- [x] Navigation flow works end-to-end
+- [x] Data counts consistent between DB and pages
+- [x] All internal links work (no 404s)
+- [x] Schema markup on all page types
+- [x] Meta descriptions on all pages
+- [x] Mobile responsive throughout
+- [x] Build generates correct page counts
+- [x] All Playwright MCP tests pass
 
 ---
 
@@ -2136,6 +2160,239 @@ Expected: Exit code 0
 
 ---
 
+## Step 17: Production Pipeline Validation with Real Data
+**Status:** [ ]
+
+### What to Build
+Run the complete pipeline cycle (Discovery → Enrichment → SEO Display) using **real Claude API calls** (not fixture mode) against a single suburb. Validate that all data flows correctly through every layer and is properly displayed on the SEO site with real images, real contact info, and real enriched data.
+
+### Prerequisites
+- `ANTHROPIC_API_KEY` must be set in `.env`
+- `ARI_FIXTURE_MODE` must NOT be set (or set to `0`)
+
+### Implementation Approach
+
+**Phase 1: Clean Slate**
+1. Reset database to fresh state (remove all fixture/test data, keep only suburb seeds)
+2. Verify database has 0 agencies, 0 agents, 50 suburbs with status `pending`
+
+**Phase 2: Discovery (Real API)**
+1. Run Discovery for **one Tier 1 suburb** (e.g., Mosman)
+2. Validate agencies discovered have:
+   - Real agency names (not "Example Realty", "Harbour Homes", etc.)
+   - Real website URLs (not example.com)
+   - Valid Australian phone numbers or emails
+3. Validate agents discovered have:
+   - Real first/last names (not repeating template names)
+   - Valid photo URLs that return HTTP 200 with image content-type
+   - Associated with correct agencies
+4. **STOP if any validation fails** → Document issue, fix, and retry
+
+**Phase 3: Enrichment (Real API)**
+1. Run Enrichment for all agents from Phase 2
+2. Validate enriched agents have:
+   - `enrichment_status = 'complete'`
+   - `enriched_bio` that is unique and professional (not template text)
+   - `years_experience` that is plausible (1-50) with valid source
+   - `languages` only populated if explicitly found (not assumed from names)
+   - At least some agents with `linkedin_url` or social links
+3. **STOP if any validation fails** → Document issue, fix, and retry
+
+**Phase 4: SEO Site Data Verification**
+1. Build SEO site: `npm run build --prefix seo-site`
+2. Start dev server and verify for the discovered suburb:
+
+   **Suburb Page (`/agents-in/{slug}`):**
+   - Agent count in title matches DB count
+   - All agent cards render with real photos (not gravatar placeholders)
+   - All agent cards link to valid agent pages
+   - Agency list shows all discovered agencies
+   - Schema markup (ItemList) present and valid
+
+   **Agent Pages (`/agent/{slug}`):**
+   - Photo loads successfully (HTTP 200, image content-type)
+   - Name, agency, location all populated
+   - Bio section shows enriched_bio (not template text)
+   - Experience section shows years if available
+   - Languages section shows languages if available
+   - Awards section shows awards if available
+   - Contact section shows phone/email if available
+   - Schema markup (RealEstateAgent) present and valid
+   - Related agents section populated
+
+   **Agency Pages (`/agency/{slug}`):**
+   - Agency name and address displayed
+   - Logo displayed if available
+   - Team roster shows all agents from that agency
+   - Each agent card links to valid agent page
+   - Schema markup present
+
+3. **STOP if any validation fails** → Document issue, fix, and retry
+
+**Phase 5: Visual & Link Audit**
+1. Navigate through complete flow: Home → State → Suburb → Agent → Agency → Back via breadcrumbs
+2. Verify no broken images (all `<img>` tags load successfully)
+3. Verify no broken internal links (all `/agent/*`, `/agency/*`, `/agents-in/*` return 200)
+4. Capture screenshots as evidence
+
+### Verification Commands
+
+**V17.1: Reset database**
+```bash
+rm -f data/ari.db
+npm run setup
+sqlite3 data/ari.db "SELECT COUNT(*) FROM agencies; SELECT COUNT(*) FROM agents; SELECT COUNT(*) FROM scrape_progress WHERE status = 'pending';"
+```
+Expected: `0`, `0`, `50`
+
+**V17.2: Run real discovery**
+```bash
+# Ensure not in fixture mode
+unset ARI_FIXTURE_MODE
+
+cd control-center && npx ts-node -e "
+const { runDiscovery } = require('./src/skills/discovery');
+runDiscovery({ suburb: 'Mosman', state: 'NSW' })
+  .then(r => console.log('Result:', JSON.stringify(r, null, 2)))
+  .catch(e => console.error('Error:', e));
+"
+```
+
+**V17.3: Validate real agency data**
+```bash
+sqlite3 data/ari.db "
+SELECT name, website, phone, email
+FROM agencies
+WHERE suburb = 'Mosman'
+LIMIT 5;
+"
+```
+Expected: Real agency names (Ray White, McGrath, LJ Hooker, etc.), real websites, some contact info
+
+**V17.4: Validate real agent data**
+```bash
+sqlite3 data/ari.db "
+SELECT first_name, last_name, photo_url
+FROM agents
+WHERE primary_suburb = 'Mosman'
+LIMIT 10;
+"
+```
+Expected: Unique real names, real photo URLs (not gravatar)
+
+**V17.5: Validate photo URLs are real images**
+```bash
+sqlite3 data/ari.db "SELECT photo_url FROM agents WHERE photo_url IS NOT NULL AND primary_suburb = 'Mosman' LIMIT 5;" | while read url; do
+  content_type=$(curl -sI "$url" | grep -i content-type | head -1)
+  echo "$url → $content_type"
+done
+```
+Expected: All return `content-type: image/*`
+
+**V17.6: Run real enrichment**
+```bash
+cd control-center && npx ts-node -e "
+const { runEnrichment } = require('./src/skills/enrichment');
+runEnrichment({ limit: 10 })
+  .then(r => console.log('Result:', JSON.stringify(r, null, 2)))
+  .catch(e => console.error('Error:', e));
+"
+```
+
+**V17.7: Validate enrichment quality**
+```bash
+sqlite3 data/ari.db "
+SELECT first_name, last_name,
+       length(enriched_bio) as bio_length,
+       years_experience,
+       years_experience_source,
+       languages,
+       linkedin_url,
+       enrichment_quality
+FROM agents
+WHERE enrichment_status = 'complete'
+AND primary_suburb = 'Mosman'
+LIMIT 5;
+"
+```
+Expected: Bio length > 100, varied experience values, some linkedin URLs
+
+**V17.8: Build and verify SEO site**
+```bash
+npm run build --prefix seo-site
+npm run dev:seo &
+sleep 5
+
+# Verify suburb page
+curl -s http://localhost:3000/agents-in/mosman-nsw-2088 | grep -c 'Real Estate Agents in Mosman'
+
+# Verify no gravatar placeholders
+curl -s http://localhost:3000/agents-in/mosman-nsw-2088 | grep -c 'gravatar.com'
+
+kill %1
+```
+Expected: 1 (title found), 0 (no gravatar placeholders)
+
+**V17.9: Visual verification (Playwright MCP)**
+```
+Using Playwright MCP:
+1. Navigate to http://localhost:3000/agents-in/mosman-nsw-2088
+2. Verify: All agent photos are real images (not placeholders)
+3. Click on first agent
+4. Verify: Agent page has real photo, real bio, real data
+5. Screenshot: production-agent-page.png
+6. Click on agency link
+7. Verify: Agency page shows real team roster
+8. Screenshot: production-agency-page.png
+```
+
+**V17.10: Broken link check**
+```bash
+npm run dev:seo &
+sleep 5
+
+# Crawl all internal links from suburb page
+curl -s http://localhost:3000/agents-in/mosman-nsw-2088 | grep -oP 'href="/(agent|agency)/[^"]+' | sort -u | while read link; do
+  url="http://localhost:3000${link#href=\"}"
+  status=$(curl -s -o /dev/null -w "%{http_code}" "$url")
+  echo "$url → $status"
+done
+
+kill %1
+```
+Expected: All return 200
+
+### Failure Handling
+
+If ANY verification step fails:
+1. **Document the failure** in Implementation Notes section below
+2. **Investigate root cause** (check logs, DB state, API responses)
+3. **Implement fix** (may require code changes)
+4. **Add sub-step** (e.g., Step 17.1) documenting what was fixed
+5. **Re-run from the failed verification step**
+6. **Only mark complete when ALL verifications pass**
+
+### Implementation Notes
+*(To be filled in during execution with any issues encountered and resolutions)*
+
+### Pass Criteria
+- [ ] Database reset to clean state
+- [ ] Discovery returns real agencies (not fixture data)
+- [ ] Discovery returns real agents with valid photo URLs
+- [ ] All agent photos return HTTP 200 with image content-type
+- [ ] Enrichment completes with real enriched data
+- [ ] Enriched bios are unique and professional (not templates)
+- [ ] SEO site builds successfully
+- [ ] Suburb page shows all agents with real photos
+- [ ] Agent pages display all enriched data correctly
+- [ ] Agency pages display team rosters correctly
+- [ ] No broken internal links
+- [ ] No gravatar placeholder images
+- [ ] All schema markup present and valid
+- [ ] Screenshots captured as evidence
+
+---
+
 ## Summary
 
 | Step | Description | Key Verification |
@@ -2156,5 +2413,6 @@ Expected: Exit code 0
 | 14 | Control Center UI - Complete | Full pipeline control |
 | 15 | End-to-End Tests | Complete flow verification |
 | 16 | Full Regression Verification | `npm test` passes |
+| 17 | Production Pipeline Validation | Real data through full cycle |
 
-**Total: 16 steps to complete application**
+**Total: 17 steps to complete application**
