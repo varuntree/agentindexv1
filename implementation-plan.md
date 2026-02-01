@@ -2116,6 +2116,26 @@ Expected: Page counts approximately match database counts
 
 ---
 
+## Step 16: Full Regression Verification
+**Status:** [x]
+
+### What to Build
+Confirm the full local pipeline (DB, build, and E2E) still passes end-to-end after all prior steps.
+
+### Implementation Notes
+- Verified `npm test` passes locally on 2026-02-01.
+
+### Verification
+```bash
+npm test
+```
+Expected: Exit code 0
+
+### Pass Criteria
+- [ ] `npm test` exits successfully
+
+---
+
 ## Summary
 
 | Step | Description | Key Verification |
@@ -2135,5 +2155,6 @@ Expected: Page counts approximately match database counts
 | 13 | Enriched Data in Pages | All enriched fields displayed |
 | 14 | Control Center UI - Complete | Full pipeline control |
 | 15 | End-to-End Tests | Complete flow verification |
+| 16 | Full Regression Verification | `npm test` passes |
 
-**Total: 15 steps to complete application**
+**Total: 16 steps to complete application**
