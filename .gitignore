@@ -1,0 +1,19 @@
+node_modules/
+.DS_Store
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# Logs
+logs/
+
+# Databases
+data/*.db
+
+# Builds
+control-center/dist/
+seo-site/.next/
+seo-site/out/
+
