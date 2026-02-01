@@ -2132,7 +2132,7 @@ npm test
 Expected: Exit code 0
 
 ### Pass Criteria
-- [ ] `npm test` exits successfully
+- [x] `npm test` exits successfully
 
 ---
 
