@@ -209,6 +209,28 @@ export function getAllSuburbs(): ScrapeProgress[] {
   }
 }
 
+export function getSuburbsByState(state: string): ScrapeProgress[] {
+  try {
+    const rows = db
+      .prepare(
+        `
+          SELECT *
+          FROM scrape_progress
+          WHERE state = ?
+          ORDER BY
+            priority_tier ASC,
+            COALESCE(region, '') ASC,
+            suburb_name ASC
+        `
+      )
+      .all(state) as ScrapeProgressRow[];
+    return rows.map(mapScrapeProgressRow);
+  } catch (error) {
+    console.error('[getSuburbsByState]', { state, error });
+    return [];
+  }
+}
+
 export function getSuburbProgress(suburbSlug: string): ScrapeProgress | null {
   try {
     const row = db

@@ -1242,7 +1242,7 @@ Using Playwright MCP:
 ---
 
 ## Step 10: State Listing Pages
-**Status:** [ ]
+**Status:** [x]
 
 ### What to Build
 Complete state pages showing all suburbs in that state.
@@ -1287,6 +1287,9 @@ seo-site/components/
 - etc.
 
 **Routing Note:** `/agents-in/[slug]` is used for suburb pages, so state pages must be static routes under `agents-in/{stateSlug}/page.tsx`.
+
+### Implementation Notes
+- Regions are grouped using `scrape_progress.region` with a normalization step so `Lower North Shore`/`Upper North Shore` display under `North Shore`.
 
 ### Verification
 

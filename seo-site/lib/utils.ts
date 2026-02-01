@@ -37,10 +37,15 @@ export function stateCodeToSlug(code: string | null | undefined): string | null 
   return AU_STATES.find((s) => s.code === normalized)?.slug ?? null;
 }
 
+export function getStateBySlug(slug: string | null | undefined): StateLink | null {
+  if (!slug) return null;
+  const normalized = slug.trim().toLowerCase();
+  return AU_STATES.find((state) => state.slug === normalized) ?? null;
+}
+
 export function formatStateLabel(code: string | null | undefined): string {
   const normalized = normalizeStateCode(code);
   if (!normalized) return 'Australia';
   const state = AU_STATES.find((s) => s.code === normalized);
   return state ? `${state.name} (${state.code})` : normalized;
 }
-
