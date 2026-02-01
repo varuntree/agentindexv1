@@ -13,8 +13,8 @@
 3. [V2 Scope (Deferred Features)](#v2-scope-deferred-features)
 4. [Two-Application Architecture](#two-application-architecture)
 5. [Data Schemas](#data-schemas)
-6. [Domain.com.au API](#domaincomau-api)
-7. [Claude Agent SDK Integration](#claude-agent-sdk-integration)
+6. [Claude Agent SDK - Discovery Skill](#claude-agent-sdk---discovery-skill)
+7. [Claude Agent SDK - Enrichment Skill](#claude-agent-sdk---enrichment-skill)
 8. [Data Pipeline Flow](#data-pipeline-flow)
 9. [Sequencing & Selection Logic](#sequencing--selection-logic)
 10. [Control Center UI](#control-center-ui)
@@ -36,7 +36,7 @@
 Build a neutral, public index of Australian real estate agents that:
 1. Generates SEO traffic for agent name, location, and agency searches
 2. Provides richer data than competitors (Rate My Agent, OpenAgent, etc.)
-3. Uses Domain.com.au API for base data + Claude Agent SDK for enrichment
+3. Uses Claude Agent SDK for discovery and enrichment via web research
 
 ### Core Hypothesis
 
@@ -64,8 +64,8 @@ Individual agents will discover or respond to neutral, third-party profile pages
 
 | Feature | Description |
 |---------|-------------|
-| **Data Collection** | Domain API → agencies → agents (basic data) |
-| **Enrichment** | Claude Agent SDK sub-agents for years experience, languages, specializations, awards, enriched bio |
+| **Data Collection** | Claude Discovery Skill → agencies → agents (basic data via web research) |
+| **Enrichment** | Claude Enrichment Skill → years experience, languages, specializations, awards, enriched bio |
 | **Static Pages** | Agent profiles, Agency pages, Suburb listings, State listings |
 | **Control Center** | Node.js app with UI to manage data pipeline |
 | **Deployment** | Vercel Deploy Hook to trigger static builds |
@@ -75,9 +75,9 @@ Individual agents will discover or respond to neutral, third-party profile pages
 
 | Source | What We Get |
 |--------|-------------|
-| Domain API `/agencies?q=suburbId` | List of agencies in a suburb |
-| Domain API `/agencies/{id}` | Agency details + embedded agent list |
-| Claude Sub-agents (web research) | Enriched data: experience, languages, specializations, awards, bio |
+| Claude Discovery Skill (web research) | List of agencies in a suburb via agency websites, Domain.com.au website, LinkedIn |
+| Claude Discovery Skill (sub-agents) | Agency details + agent roster via agency team pages |
+| Claude Enrichment Skill (web research) | Enriched data: experience, languages, specializations, awards, bio |
 
 ### V1 Page Types
 
@@ -137,14 +137,22 @@ ARI consists of **two separate applications** that work together:
 │   ┌─────────────────────────────────────────────────────────────────────┐   │
 │   │                      BACKEND SERVICES                                │   │
 │   │                                                                      │   │
-│   │  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────────┐ │   │
-│   │  │  Domain API     │  │  Claude Agent   │  │  SQLite Database    │ │   │
-│   │  │  Client         │  │  SDK Runtime    │  │                     │ │   │
-│   │  │                 │  │                 │  │  • agencies         │ │   │
-│   │  │  • Auth         │  │  • Main Agent   │  │  • agents           │ │   │
-│   │  │  • Fetch        │  │  • Sub-agents   │  │  • scrape_progress  │ │   │
-│   │  │  • Store        │  │  • Enrichment   │  │  • agency_progress  │ │   │
-│   │  └─────────────────┘  └─────────────────┘  └─────────────────────┘ │   │
+│   │  ┌─────────────────────────────────┐  ┌─────────────────────────┐  │   │
+│   │  │  Claude Agent SDK               │  │  SQLite Database        │  │   │
+│   │  │                                 │  │                         │  │   │
+│   │  │  ┌─────────────────────────┐   │  │  • agencies             │  │   │
+│   │  │  │ DISCOVERY SKILL (1)    │   │  │  • agents               │  │   │
+│   │  │  │ • Find agencies        │   │  │  • scrape_progress      │  │   │
+│   │  │  │ • Find agents          │   │  │  • agency_progress      │  │   │
+│   │  │  │ • Web research         │   │  │                         │  │   │
+│   │  │  └─────────────────────────┘   │  │                         │  │   │
+│   │  │  ┌─────────────────────────┐   │  │                         │  │   │
+│   │  │  │ ENRICHMENT SKILL (2)   │   │  │                         │  │   │
+│   │  │  │ • Enhance profiles     │   │  │                         │  │   │
+│   │  │  │ • LinkedIn, awards     │   │  │                         │  │   │
+│   │  │  │ • Deep research        │   │  │                         │  │   │
+│   │  │  └─────────────────────────┘   │  │                         │  │   │
+│   │  └─────────────────────────────────┘  └─────────────────────────┘  │   │
 │   └─────────────────────────────────────────────────────────────────────┘   │
 │                                     │                                        │
 │                                     │ Trigger via Vercel Deploy Hook         │
@@ -186,11 +194,10 @@ ARI consists of **two separate applications** that work together:
 
 | Concern | Control Center (Node.js) | SEO Site (Next.js) |
 |---------|--------------------------|-------------------|
-| **Purpose** | Data pipeline, enrichment | Public SEO pages |
+| **Purpose** | Data pipeline, discovery, enrichment | Public SEO pages |
 | **Runs** | On-demand, locally/server | Continuous on Vercel |
 | **Database** | Read/Write | Read-only at build |
-| **Claude SDK** | Yes (runs sub-agents) | No |
-| **Domain API** | Yes | No |
+| **Claude SDK** | Yes (Discovery + Enrichment skills) | No |
 | **User-facing** | Admin only | Public |
 
 ### Data Flow Between Applications
@@ -199,9 +206,11 @@ ARI consists of **two separate applications** that work together:
 Control Center                              SEO Site
 ─────────────────                          ─────────
      │                                          │
-     │  1. Fetch from Domain API                │
+     │  1. Run Claude Discovery Skill           │
+     │     (find agencies & agents via web)     │
      │  2. Store in SQLite                      │
-     │  3. Run Claude enrichment                │
+     │  3. Run Claude Enrichment Skill          │
+     │     (enhance profiles via web research)  │
      │  4. Update SQLite                        │
      │                                          │
      │──── SQLite database file ────────────────│
@@ -230,14 +239,14 @@ CREATE TABLE agents (
     -- Agency relationship
     agency_id INTEGER REFERENCES agencies(id),
 
-    -- Basic info (from Domain API)
+    -- Basic info (from Discovery Skill)
     first_name TEXT NOT NULL,
     last_name TEXT NOT NULL,
     email TEXT,
     phone TEXT,
     mobile TEXT,
     photo_url TEXT,
-    profile_text TEXT,                    -- Original bio from API
+    profile_text TEXT,                    -- Original bio from source website
 
     -- Location (from agency)
     primary_suburb TEXT,
@@ -345,7 +354,7 @@ CREATE TABLE agencies (
     domain_id INTEGER UNIQUE NOT NULL,
     slug TEXT UNIQUE NOT NULL,
 
-    -- Basic info (from Domain API)
+    -- Basic info (from Discovery Skill)
     name TEXT NOT NULL,
     brand_name TEXT,                      -- "Ray White" for tier lookup
     logo_url TEXT,
@@ -414,7 +423,7 @@ interface Agency {
 ```sql
 CREATE TABLE scrape_progress (
     id INTEGER PRIMARY KEY,
-    suburb_id TEXT NOT NULL UNIQUE,       -- Domain API suburb ID
+    suburb_id TEXT NOT NULL UNIQUE,       -- Suburb identifier
     suburb_name TEXT NOT NULL,
     state TEXT NOT NULL,
     postcode TEXT,
@@ -493,99 +502,79 @@ interface EnrichedAgentData {
 
 ---
 
-## Domain.com.au API
-
-### Authentication
-
-```typescript
-// OAuth 2.0 Client Credentials Flow
-const tokenUrl = 'https://auth.domain.com.au/v1/connect/token';
-const baseUrl = 'https://api.domain.com.au/v1/';
-const scopes = ['api_agencies_read', 'api_listings_read'];
-```
-
-### Endpoints Used in V1
-
-#### 1. Search Agencies by Suburb
-
-```
-GET /v1/agencies?q=suburbId:{suburbId}
-```
-
-**Response:**
-```json
-[
-  {
-    "id": 12345,
-    "name": "Ray White Bondi Beach",
-    "suburb": "Bondi Beach",
-    "logoUrl": "https://...",
-    "telephone": "(02) 9130 5888",
-    "email": "bondi@raywhite.com",
-    "numberForSale": 45,
-    "numberForRent": 23
-  }
-]
-```
-
-#### 2. Get Agency Details (includes agents)
-
-```
-GET /v1/agencies/{id}
-```
-
-**Response:**
-```json
-{
-  "id": 12345,
-  "name": "Ray White Bondi Beach",
-  "profile": {
-    "agencyLogoStandard": "https://...",
-    "agencyWebsite": "https://raywhitebondibeach.com.au",
-    "agencyDescription": "Ray White Bondi Beach is a leading..."
-  },
-  "details": {
-    "streetAddress1": "123 Campbell Parade",
-    "suburb": "Bondi Beach",
-    "state": "NSW",
-    "postcode": "2026",
-    "principalName": "Jane Doe"
-  },
-  "agents": [
-    {
-      "id": 67890,
-      "firstName": "John",
-      "lastName": "Smith",
-      "email": "john.smith@raywhite.com",
-      "mobile": "0412 345 678",
-      "photo": "https://...",
-      "profileText": "John has been selling property in Bondi..."
-    }
-  ]
-}
-```
-
-### Endpoints NOT Used in V1
-
-| Endpoint | Why Skipped |
-|----------|-------------|
-| `GET /v1/agents/{id}` | Use agent data from agency response instead |
-| `GET /v1/agents/{id}/listings` | Listing stats deferred to V2 |
-
-### API Budget
-
-- **Free Tier:** 500 calls/day
-- **Reset:** 10am AEST daily
-- **V1 Strategy:** ~13 calls per suburb (1 search + ~12 agency details)
-- **Daily Capacity:** ~38 suburbs/day
-
----
-
-## Claude Agent SDK Integration
+## Claude Agent SDK - Discovery Skill
 
 ### Overview
 
-The Control Center uses Claude Agent SDK to enrich agent profiles with data not available from Domain API.
+The Discovery Skill is the **first of two Claude Agent SDK skills** in the ARI pipeline. It discovers real estate agencies and their agents through web research.
+
+### Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                     DISCOVERY PIPELINE                           │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  Input: Suburb name + state (e.g., "Mosman, NSW")               │
+│                                                                  │
+│  ┌───────────────────────────────────────────────────────────┐  │
+│  │                    MAIN AGENT                              │  │
+│  │  • Search for agencies in suburb                          │  │
+│  │  • Pre-check each against database (avoid duplicates)     │  │
+│  │  • Spawn sub-agent for each NEW agency                    │  │
+│  └───────────────────────────────────────────────────────────┘  │
+│                          │                                       │
+│         ┌────────────────┼────────────────┐                     │
+│         ▼                ▼                ▼                     │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐             │
+│  │ SUB-AGENT 1 │  │ SUB-AGENT 2 │  │ SUB-AGENT 3 │  ...        │
+│  │ Agency A    │  │ Agency B    │  │ Agency C    │             │
+│  │ Find agents │  │ Find agents │  │ Find agents │             │
+│  └─────────────┘  └─────────────┘  └─────────────┘             │
+│                                                                  │
+│  Output: Agencies + Agents stored in SQLite                     │
+│          (enrichment_status = 'pending')                        │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Data Sources (Priority Order)
+
+| Priority | Source | Description |
+|----------|--------|-------------|
+| 1 | Agency brand website | Team pages (raywhite.com.au, etc.) |
+| 2 | Domain.com.au website | Agency profiles (not API) |
+| 3 | LinkedIn | Company pages and agent profiles |
+| 4 | Google search | Fallback discovery |
+
+### What Discovery Finds
+
+| Data | Source |
+|------|--------|
+| Agency name | Website, Google |
+| Agency website | Direct search |
+| Agency contact | Website |
+| Agent names | Team pages |
+| Agent photos | Team pages |
+| Agent contact | Team pages, LinkedIn |
+| Basic bio | Team pages |
+
+### Cost Estimates
+
+| Operation | Est. Cost |
+|-----------|-----------|
+| Main agent (per suburb) | ~$0.03 |
+| Sub-agent (per agency) | ~$0.05 |
+| **Per suburb (10 agencies)** | ~$0.50-0.80 |
+| **Daily budget ($10)** | ~12-16 suburbs |
+
+---
+
+## Claude Agent SDK - Enrichment Skill
+
+### Overview
+
+The Control Center uses Claude Agent SDK to enrich agent profiles with additional data beyond what Discovery provides.
 
 ### Architecture
 
@@ -791,19 +780,24 @@ User opens Control Center → Sees suburb list → Selects suburbs/agencies to p
                                     │
                                     ▼
 
-STEP 2: DOMAIN API DATA COLLECTION
-──────────────────────────────────
+STEP 2: DISCOVERY VIA CLAUDE AGENT SDK
+──────────────────────────────────────
 ┌─────────────────────────────────────────────────────────────────┐
 │  For each selected suburb:                                       │
 │                                                                  │
-│  GET /agencies?q=suburbId:{id}                                  │
+│  Main Agent searches for agencies via:                          │
+│      • Agency brand websites                                    │
+│      • Domain.com.au website                                    │
+│      • LinkedIn                                                 │
+│      • Google                                                   │
 │      │                                                           │
 │      ▼                                                           │
-│  For each agency returned:                                       │
+│  For each NEW agency found (not in database):                   │
 │      │                                                           │
-│      │  GET /agencies/{agencyId}                                │
+│      │  Sub-agent visits agency website/team page               │
 │      │      │                                                    │
 │      │      ▼                                                    │
+│      │  Extract all agents from team page                       │
 │      │  Store agency in SQLite                                  │
 │      │  Store all agents in SQLite (enrichment_status='pending')│
 │      │                                                           │
@@ -974,25 +968,27 @@ LIMIT 50;
 │  │                                                                          ││
 │  │  Selected: 2 suburbs, 4 agencies, ~45 agents                            ││
 │  │                                                                          ││
-│  │  [▶ Fetch from Domain API]  [▶ Run Enrichment]  [▶ Trigger Build]       ││
+│  │  [▶ Run Discovery]  [▶ Run Enrichment]  [▶ Trigger Build]              ││
 │  │                                                                          ││
 │  └─────────────────────────────────────────────────────────────────────────┘│
 │                                                                              │
 │  ┌─────────────────────────────────────────────────────────────────────────┐│
 │  │  ACTIVITY LOG                                                    [Clear] ││
 │  │                                                                          ││
-│  │  14:32:01 [API] Fetching agencies in Mosman...                          ││
-│  │  14:32:02 [API] Found 12 agencies                                       ││
-│  │  14:32:03 [API] GET /agencies/12345 - Ray White Mosman                  ││
-│  │  14:32:04 [DB]  ✓ Stored agency: Ray White Mosman                       ││
-│  │  14:32:04 [DB]  ✓ Stored 8 agents                                       ││
-│  │  14:32:05 [ENRICH] Starting enrichment batch (45 agents)                ││
-│  │  14:32:06 [AGENT] Main agent spawning 5 sub-agents                      ││
-│  │  14:32:10 [SUB-1] Processing: John Smith, Mary Chen, David Wong...      ││
-│  │  14:32:15 [SUB-1] ✓ John Smith - LinkedIn found, 8 years exp            ││
-│  │  14:32:18 [SUB-1] ✓ Mary Chen - Agency bio found, Mandarin speaker      ││
-│  │  14:32:20 [SUB-2] ✓ Sarah Jones - Minimal data found                    ││
-│  │  14:32:25 [SUB-1] Complete: 10/10 agents (8 high, 2 low confidence)     ││
+│  │  14:32:01 [DISCOVERY] Starting discovery for Mosman, NSW...             ││
+│  │  14:32:05 [DISCOVERY] Main agent searching for agencies...              ││
+│  │  14:32:15 [DISCOVERY] Found 12 agencies, checking for duplicates...     ││
+│  │  14:32:20 [DISCOVERY] 10 new agencies to process                        ││
+│  │  14:32:25 [DISCOVERY] Sub-agent processing Ray White Mosman...          ││
+│  │  14:32:35 [DISCOVERY] ✓ Ray White Mosman - 8 agents found               ││
+│  │  14:32:40 [DB] ✓ Stored agency + 8 agents                               ││
+│  │  14:33:00 [DISCOVERY] Complete: 10 agencies, 85 agents discovered       ││
+│  │  14:33:05 [ENRICH] Starting enrichment batch (50 agents)                ││
+│  │  14:33:10 [ENRICH] Main agent spawning 5 sub-agents                     ││
+│  │  14:33:30 [SUB-1] ✓ John Smith - LinkedIn found, 8 years exp            ││
+│  │  14:33:45 [SUB-1] ✓ Mary Chen - Agency bio found, Mandarin speaker      ││
+│  │  14:34:00 [SUB-2] ✓ Sarah Jones - Minimal data found                    ││
+│  │  14:34:30 [ENRICH] Complete: 50 agents (38 high, 12 low confidence)     ││
 │  │  ...                                                                     ││
 │  │  14:35:00 [BUILD] Triggering Vercel deploy hook...                      ││
 │  │  14:35:01 [BUILD] Job ID: okzCd50AIap1O31g0gne                          ││
@@ -1019,8 +1015,8 @@ LIMIT 50;
 
 | Button | Action |
 |--------|--------|
-| **Fetch from Domain API** | Call Domain API for selected suburbs/agencies |
-| **Run Enrichment** | Start Claude Agent SDK enrichment for pending agents |
+| **Run Discovery** | Run Claude Discovery Skill to find agencies/agents in selected suburbs |
+| **Run Enrichment** | Run Claude Enrichment Skill for pending agents |
 | **Trigger Build** | POST to Vercel Deploy Hook |
 
 ### Activity Log
@@ -1140,7 +1136,7 @@ export function getAgentsInSuburb(suburb: string, limit?: number): Agent[] {
 │                                                                  │
 │ [enriched_bio - AI-generated description from findings]         │
 │                                                                  │
-│ If enriched_bio is null, show profile_text from Domain API      │
+│ If enriched_bio is null, show profile_text from Discovery       │
 │                                                                  │
 ├─────────────────────────────────────────────────────────────────┤
 │ EXPERIENCE & EXPERTISE                                          │
@@ -1207,7 +1203,7 @@ export function getAgentsInSuburb(suburb: string, limit?: number): Agent[] {
 ├─────────────────────────────────────────────────────────────────┤
 │ ABOUT RAY WHITE BONDI BEACH                                     │
 │                                                                  │
-│ [description from Domain API]                                   │
+│ [description from Discovery Skill]                              │
 │                                                                  │
 │ Principal: Jane Doe                                             │
 │ Team Size: 12 agents                                            │
@@ -1619,7 +1615,7 @@ function generateAgentDescription(agent: Agent): string {
 - [ ] Set up Control Center Node.js project
 - [ ] Set up Next.js SEO site project
 - [ ] Create SQLite database with schemas
-- [ ] Implement Domain API client
+- [ ] Implement Discovery Skill
 - [ ] Seed scrape_progress with Tier 1 suburbs
 - [ ] Basic Control Center UI (suburb list)
 
@@ -1667,11 +1663,22 @@ function generateAgentDescription(agent: Agent): string {
 ari/
 ├── control-center/                    # Node.js app
 │   ├── src/
-│   │   ├── api/
-│   │   │   └── domain-client.ts
-│   │   ├── enrichment/
-│   │   │   ├── main-agent.ts
-│   │   │   └── sub-agent-definition.ts
+│   │   ├── skills/                    # Claude Agent SDK skills
+│   │   │   ├── discovery/
+│   │   │   │   ├── main-agent.ts      # Discovery orchestrator
+│   │   │   │   ├── sub-agent-definition.ts
+│   │   │   │   └── prompts.ts
+│   │   │   ├── enrichment/
+│   │   │   │   ├── main-agent.ts      # Enrichment orchestrator
+│   │   │   │   ├── sub-agent-definition.ts
+│   │   │   │   └── prompts.ts
+│   │   │   └── shared/
+│   │   │       ├── output-schema.ts   # SubAgentOutput (shared)
+│   │   │       └── cost-tracker.ts
+│   │   ├── routes/
+│   │   │   ├── discovery.ts           # Discovery endpoints
+│   │   │   ├── enrichment.ts          # Enrichment endpoints
+│   │   │   └── deploy.ts
 │   │   ├── db/
 │   │   │   ├── database.ts
 │   │   │   └── queries.ts
@@ -1715,12 +1722,13 @@ ari/
 
 **Control Center (.env):**
 ```bash
-# Domain API
-DOMAIN_API_CLIENT_ID=xxx
-DOMAIN_API_CLIENT_SECRET=xxx
-
-# Claude
+# Claude Agent SDK
 ANTHROPIC_API_KEY=xxx
+
+# Cost Management
+CLAUDE_DAILY_BUDGET_USD=10.00
+CLAUDE_DISCOVERY_MAX_AGENCIES_PER_RUN=10
+CLAUDE_ENRICHMENT_MAX_AGENTS_PER_BATCH=50
 
 # Vercel
 VERCEL_DEPLOY_HOOK_URL=https://api.vercel.com/v1/integrations/deploy/...

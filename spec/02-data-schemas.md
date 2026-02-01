@@ -108,7 +108,7 @@ CREATE TABLE agents (
     -- IDENTIFIERS
     -- ═══════════════════════════════════════════════════════════════════
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    domain_id INTEGER UNIQUE NOT NULL,           -- ID from Domain.com.au API
+    domain_id INTEGER UNIQUE NOT NULL,           -- Unique ID (generated or from Discovery)
     slug TEXT UNIQUE NOT NULL,                   -- URL slug: "john-smith-bondi-rw-a1b2c"
 
     -- ═══════════════════════════════════════════════════════════════════
@@ -117,7 +117,7 @@ CREATE TABLE agents (
     agency_id INTEGER NOT NULL REFERENCES agencies(id) ON DELETE CASCADE,
 
     -- ═══════════════════════════════════════════════════════════════════
-    -- BASIC INFO (from Domain API)
+    -- BASIC INFO (from Discovery Skill)
     -- ═══════════════════════════════════════════════════════════════════
     first_name TEXT NOT NULL,
     last_name TEXT NOT NULL,
@@ -170,7 +170,7 @@ CREATE TABLE agents (
     -- ═══════════════════════════════════════════════════════════════════
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    api_fetched_at DATETIME,                     -- When fetched from Domain API
+    api_fetched_at DATETIME,                     -- When discovered via Claude Discovery Skill
     enriched_at DATETIME                         -- When enrichment completed
 );
 
@@ -186,16 +186,16 @@ END;
 
 | Field | Type | Source | Description |
 |-------|------|--------|-------------|
-| `domain_id` | INTEGER | API | Unique ID from Domain.com.au |
+| `domain_id` | INTEGER | Discovery | Unique ID (generated or discovered) |
 | `slug` | TEXT | Generated | URL-safe identifier (see Slug Generation) |
 | `agency_id` | INTEGER | FK | Link to agencies table |
-| `first_name` | TEXT | API | Agent's first name |
-| `last_name` | TEXT | API | Agent's last name |
-| `email` | TEXT | API | Contact email (may be null) |
-| `phone` | TEXT | API | Office/landline phone |
-| `mobile` | TEXT | API | Mobile phone number |
-| `photo_url` | TEXT | API | URL to profile photo |
-| `profile_text` | TEXT | API | Original bio from Domain |
+| `first_name` | TEXT | Discovery | Agent's first name |
+| `last_name` | TEXT | Discovery | Agent's last name |
+| `email` | TEXT | Discovery | Contact email (may be null) |
+| `phone` | TEXT | Discovery | Office/landline phone |
+| `mobile` | TEXT | Discovery | Mobile phone number |
+| `photo_url` | TEXT | Discovery | URL to profile photo |
+| `profile_text` | TEXT | Discovery | Original bio from source website |
 | `primary_suburb` | TEXT | Agency | Suburb where agent works |
 | `primary_state` | TEXT | Agency | State abbreviation |
 | `primary_postcode` | TEXT | Agency | Postcode |
@@ -229,11 +229,11 @@ CREATE TABLE agencies (
     -- IDENTIFIERS
     -- ═══════════════════════════════════════════════════════════════════
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    domain_id INTEGER UNIQUE NOT NULL,           -- ID from Domain.com.au API
+    domain_id INTEGER UNIQUE NOT NULL,           -- Unique ID (generated or from Discovery)
     slug TEXT UNIQUE NOT NULL,                   -- URL slug: "ray-white-bondi-beach"
 
     -- ═══════════════════════════════════════════════════════════════════
-    -- BASIC INFO (from Domain API)
+    -- BASIC INFO (from Discovery Skill)
     -- ═══════════════════════════════════════════════════════════════════
     name TEXT NOT NULL,                          -- Full agency name
     brand_name TEXT,                             -- "Ray White", "McGrath" for tier lookup
@@ -341,7 +341,7 @@ CREATE TABLE scrape_progress (
     -- IDENTIFIERS
     -- ═══════════════════════════════════════════════════════════════════
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    suburb_id TEXT NOT NULL UNIQUE,              -- Domain API suburb ID
+    suburb_id TEXT NOT NULL UNIQUE,              -- Suburb identifier
     suburb_name TEXT NOT NULL,
     state TEXT NOT NULL,
     postcode TEXT,
@@ -594,10 +594,13 @@ interface ScrapeProgress {
 
 ## Sub-Agent Output Schema
 
+> 📌 **Shared Schema:** The `SubAgentOutput` interface is used by BOTH the Discovery Skill (Skill 1) and the Enrichment Skill (Skill 2). Discovery uses it to return newly found agencies and agents, while Enrichment uses it to return enhanced profile data for existing agents. This consistency simplifies data handling throughout the pipeline.
+
 ### What Claude Returns
 
 ```typescript
-// Output structure from the enrichment sub-agents
+// Output structure from the Discovery and Enrichment sub-agents
+// Used by: Discovery Skill (03-discovery-skill.md) and Enrichment Skill (04-enrichment-pipeline.md)
 interface SubAgentOutput {
   batch_id: string;                  // UUID for this batch
   processed_at: string;              // ISO timestamp
@@ -987,6 +990,6 @@ export function getAgentsInSuburb(suburb: string, state: string): Agent[] {
 ## Related Specifications
 
 - **[01-architecture.md](./01-architecture.md)** - Database configuration context
-- **[03-domain-api.md](./03-domain-api.md)** - Source of API data
+- **[03-discovery-skill.md](./03-discovery-skill.md)** - Discovery Skill for finding agencies/agents
 - **[04-enrichment-pipeline.md](./04-enrichment-pipeline.md)** - Source of enriched data
 - **[06-seo-site.md](./06-seo-site.md)** - How queries are used

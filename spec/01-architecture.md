@@ -64,14 +64,22 @@ ARI consists of **two separate applications** that work together to create a pub
 │   ┌─────────────────────────────────────────────────────────────────────┐   │
 │   │                      BACKEND SERVICES                                │   │
 │   │                                                                      │   │
-│   │  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────────┐ │   │
-│   │  │  Domain API     │  │  Claude Agent   │  │  SQLite Database    │ │   │
-│   │  │  Client         │  │  SDK Runtime    │  │                     │ │   │
-│   │  │                 │  │                 │  │  • agencies         │ │   │
-│   │  │  • Auth         │  │  • Main Agent   │  │  • agents           │ │   │
-│   │  │  • Fetch        │  │  • Sub-agents   │  │  • scrape_progress  │ │   │
-│   │  │  • Store        │  │  • Enrichment   │  │                     │ │   │
-│   │  └─────────────────┘  └─────────────────┘  └─────────────────────┘ │   │
+│   │  ┌─────────────────────────────────┐  ┌─────────────────────────┐  │   │
+│   │  │  Claude Agent SDK               │  │  SQLite Database        │  │   │
+│   │  │                                 │  │                         │  │   │
+│   │  │  ┌─────────────────────────┐   │  │  • agencies             │  │   │
+│   │  │  │ DISCOVERY SKILL (1)    │   │  │  • agents               │  │   │
+│   │  │  │ • Find agencies        │   │  │  • scrape_progress      │  │   │
+│   │  │  │ • Find agents          │   │  │  • agency_progress      │  │   │
+│   │  │  │ • Web research         │   │  │                         │  │   │
+│   │  │  └─────────────────────────┘   │  │                         │  │   │
+│   │  │  ┌─────────────────────────┐   │  │                         │  │   │
+│   │  │  │ ENRICHMENT SKILL (2)   │   │  │                         │  │   │
+│   │  │  │ • Enhance profiles     │   │  │                         │  │   │
+│   │  │  │ • LinkedIn, awards     │   │  │                         │  │   │
+│   │  │  │ • Deep research        │   │  │                         │  │   │
+│   │  │  └─────────────────────────┘   │  │                         │  │   │
+│   │  └─────────────────────────────────┘  └─────────────────────────┘  │   │
 │   └─────────────────────────────────────────────────────────────────────┘   │
 │                                     │                                        │
 │                                     │ Trigger via Vercel Deploy Hook         │
@@ -117,9 +125,9 @@ ARI consists of **two separate applications** that work together to create a pub
 
 The Control Center is an **admin-only application** that manages the entire data pipeline:
 
-1. Fetching data from Domain.com.au API
-2. Storing raw data in SQLite
-3. Running Claude Agent SDK for enrichment
+1. Running Claude Discovery Skill to find agencies and agents
+2. Storing discovered data in SQLite
+3. Running Claude Enrichment Skill to enhance profiles
 4. Triggering Vercel deployments
 
 ### Characteristics
@@ -129,7 +137,7 @@ The Control Center is an **admin-only application** that manages the entire data
 | Framework | Node.js + Express |
 | UI | Single HTML page with vanilla JS |
 | Database | SQLite (read/write) |
-| APIs Used | Domain.com.au, Claude Agent SDK |
+| AI | Claude Agent SDK (Discovery + Enrichment skills) |
 | Deployment | Local machine or private server |
 | Access | Admin only (not public) |
 | Runtime | On-demand (manual triggers) |
@@ -146,8 +154,8 @@ Control Center
 │
 ├── Backend Services
 │   ├── Express server (API + static files)
-│   ├── Domain API client
-│   ├── Claude Agent SDK runtime
+│   ├── Claude Discovery Skill (find agencies/agents)
+│   ├── Claude Enrichment Skill (enhance profiles)
 │   └── SQLite database wrapper
 │
 └── Outputs
@@ -226,9 +234,11 @@ SEO Site
 Control Center                              SEO Site
 ─────────────────                          ─────────
      │                                          │
-     │  1. Fetch from Domain API                │
+     │  1. Run Claude Discovery Skill           │
+     │     (find agencies & agents via web)     │
      │  2. Store in SQLite                      │
-     │  3. Run Claude enrichment                │
+     │  3. Run Claude Enrichment Skill          │
+     │     (enhance profiles via web research)  │
      │  4. Update SQLite                        │
      │                                          │
      │──── SQLite database file ────────────────│
@@ -292,19 +302,24 @@ User opens Control Center → Sees suburb list → Selects suburbs/agencies to p
                                     │
                                     ▼
 
-STEP 2: DOMAIN API DATA COLLECTION
-──────────────────────────────────
+STEP 2: DISCOVERY VIA CLAUDE AGENT SDK
+──────────────────────────────────────
 ┌─────────────────────────────────────────────────────────────────┐
 │  For each selected suburb:                                       │
 │                                                                  │
-│  GET /agencies?q=suburbId:{id}                                  │
+│  Main Agent searches for agencies via:                          │
+│      • Agency brand websites                                    │
+│      • Domain.com.au website                                    │
+│      • LinkedIn                                                 │
+│      • Google                                                   │
 │      │                                                           │
 │      ▼                                                           │
-│  For each agency returned:                                       │
+│  For each NEW agency found (not in database):                   │
 │      │                                                           │
-│      │  GET /agencies/{agencyId}                                │
+│      │  Sub-agent visits agency website/team page               │
 │      │      │                                                    │
 │      │      ▼                                                    │
+│      │  Extract all agents from team page                       │
 │      │  Store agency in SQLite                                  │
 │      │  Store all agents in SQLite (enrichment_status='pending')│
 │      │                                                           │
@@ -390,11 +405,22 @@ STEP 6: DEPLOY TO CDN
 ari/
 ├── control-center/                    # Node.js app
 │   ├── src/
-│   │   ├── api/
-│   │   │   └── domain-client.ts       # Domain.com.au API wrapper
-│   │   ├── enrichment/
-│   │   │   ├── main-agent.ts          # Orchestrates enrichment batches
-│   │   │   └── sub-agent-definition.ts # Sub-agent prompt & tools
+│   │   ├── skills/                    # Claude Agent SDK skills
+│   │   │   ├── discovery/
+│   │   │   │   ├── main-agent.ts      # Discovery orchestrator
+│   │   │   │   ├── sub-agent-definition.ts
+│   │   │   │   └── prompts.ts
+│   │   │   ├── enrichment/
+│   │   │   │   ├── main-agent.ts      # Enrichment orchestrator
+│   │   │   │   ├── sub-agent-definition.ts
+│   │   │   │   └── prompts.ts
+│   │   │   └── shared/
+│   │   │       ├── output-schema.ts   # SubAgentOutput (shared)
+│   │   │       └── cost-tracker.ts
+│   │   ├── routes/
+│   │   │   ├── discovery.ts           # Discovery endpoints
+│   │   │   ├── enrichment.ts          # Enrichment endpoints
+│   │   │   └── deploy.ts
 │   │   ├── db/
 │   │   │   ├── database.ts            # SQLite connection
 │   │   │   ├── schema.sql             # Table definitions
@@ -472,7 +498,7 @@ ari/
 │   ├── index.md
 │   ├── 01-architecture.md
 │   ├── 02-data-schemas.md
-│   ├── 03-domain-api.md
+│   ├── 03-discovery-skill.md
 │   ├── 04-enrichment-pipeline.md
 │   ├── 05-control-center.md
 │   ├── 06-seo-site.md
@@ -494,8 +520,8 @@ ari/
 | Language | TypeScript | Type safety |
 | Server | Express | HTTP server for UI |
 | Database | SQLite + better-sqlite3 | Local data storage |
-| AI | Claude Agent SDK | Profile enrichment |
-| HTTP | fetch (native) | API calls |
+| AI | Claude Agent SDK | Discovery + Enrichment skills |
+| HTTP | fetch (native) | Web research |
 
 ### SEO Site
 
@@ -524,8 +550,8 @@ ari/
 
 | Responsibility | Control Center | SEO Site |
 |----------------|----------------|----------|
-| Domain API calls | ✅ | ❌ |
-| Claude Agent SDK | ✅ | ❌ |
+| Claude Discovery Skill | ✅ | ❌ |
+| Claude Enrichment Skill | ✅ | ❌ |
 | SQLite writes | ✅ | ❌ |
 | SQLite reads | ✅ | ✅ (build only) |
 | Admin UI | ✅ | ❌ |
@@ -540,10 +566,9 @@ ari/
 ┌─────────────────────────────────────────────────────────────────┐
 │                    PRIVATE (Control Center)                      │
 │                                                                  │
-│  • Domain API credentials                                        │
 │  • Anthropic API key                                            │
 │  • Vercel deploy hook URL                                       │
-│  • Enrichment prompts                                           │
+│  • Discovery & Enrichment prompts                               │
 │  • Admin access                                                 │
 │                                                                  │
 └─────────────────────────────────────────────────────────────────┘
@@ -618,6 +643,8 @@ Control Center                    SEO Site
 ## Related Specifications
 
 - **[02-data-schemas.md](./02-data-schemas.md)** - Database schema details
+- **[03-discovery-skill.md](./03-discovery-skill.md)** - Discovery Skill implementation
+- **[04-enrichment-pipeline.md](./04-enrichment-pipeline.md)** - Enrichment Skill implementation
 - **[05-control-center.md](./05-control-center.md)** - Control Center implementation
 - **[06-seo-site.md](./06-seo-site.md)** - SEO Site implementation
 - **[08-operations.md](./08-operations.md)** - Deployment and operations

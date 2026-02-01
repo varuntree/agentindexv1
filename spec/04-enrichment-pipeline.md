@@ -1,6 +1,6 @@
-# 04 - Enrichment Pipeline
+# 04 - Enrichment Skill (Claude Agent SDK)
 
-**Domain:** AI Integration (Claude Agent SDK)
+**Domain:** AI Integration - Profile Enhancement
 **Last Updated:** 2026-02-01
 
 ---
@@ -8,6 +8,7 @@
 ## Index
 
 1. [Overview](#overview)
+2. [Relationship to Discovery Skill](#relationship-to-discovery-skill)
 2. [Architecture](#architecture)
 3. [Main Agent](#main-agent)
 4. [Sub-Agent Definition](#sub-agent-definition)
@@ -23,7 +24,46 @@
 
 ## Overview
 
-The enrichment pipeline uses **Claude Agent SDK** to research and enhance agent profiles with data not available from the Domain.com.au API.
+The Enrichment Skill is the **second of two Claude Agent SDK skills** in the ARI pipeline. It enhances agent profiles discovered by the Discovery Skill with additional data from web research.
+
+---
+
+## Relationship to Discovery Skill
+
+The Enrichment Skill is "Skill 2" in the two-skill architecture:
+
+```
+┌─────────────────┐      ┌─────────────────┐      ┌──────────────┐
+│  DISCOVERY      │      │  ENRICHMENT     │      │  SEO SITE    │
+│  SKILL (1)      │  ──► │  SKILL (2)      │  ──► │  (Build)     │
+│                 │      │                 │      │              │
+│  Find agencies  │      │  Enhance agents │      │  Static      │
+│  Find agents    │      │  LinkedIn, etc  │      │  Pages       │
+│  Basic data     │      │  Deep research  │      │              │
+└─────────────────┘      └─────────────────┘      └──────────────┘
+```
+
+### What Discovery Provides → What Enrichment Adds
+
+| Field | Discovery (Skill 1) | Enrichment (Skill 2) |
+|-------|---------------------|----------------------|
+| Name | ✅ first_name, last_name | — |
+| Contact | ✅ email, phone, mobile | — |
+| Photo | ✅ photo_url | — |
+| Basic bio | ✅ profile_text | ✅ enriched_bio |
+| Experience | — | ✅ years_experience, career_start_year |
+| Languages | — | ✅ languages |
+| Specializations | — | ✅ specializations, property_types |
+| Awards | — | ✅ awards |
+| Social links | — | ✅ linkedin_url, facebook_url, etc. |
+
+### Shared Output Schema
+
+Both skills use the same `SubAgentOutput` schema defined in `02-data-schemas.md`. Discovery fills basic fields, Enrichment fills enhancement fields.
+
+---
+
+## Enrichment Pipeline
 
 ### What We Enrich
 
@@ -1034,6 +1074,7 @@ export const enrichmentPipeline = new EnrichmentPipeline();
 ## Related Specifications
 
 - **[01-architecture.md](./01-architecture.md)** - Where enrichment fits in pipeline
-- **[02-data-schemas.md](./02-data-schemas.md)** - SubAgentOutput schema
+- **[02-data-schemas.md](./02-data-schemas.md)** - SubAgentOutput schema (shared with Discovery)
+- **[03-discovery-skill.md](./03-discovery-skill.md)** - Discovery Skill (Skill 1)
 - **[05-control-center.md](./05-control-center.md)** - UI for triggering enrichment
-- **[08-operations.md](./08-operations.md)** - Enrichment scheduling
+- **[08-operations.md](./08-operations.md)** - Cost management and scheduling

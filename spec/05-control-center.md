@@ -26,8 +26,8 @@
 
 The Control Center is a **local Node.js application** that manages the entire ARI data pipeline:
 
-- Fetching data from Domain.com.au API
-- Managing enrichment via Claude Agent SDK
+- Running Claude Discovery Skill to find agencies and agents
+- Running Claude Enrichment Skill to enhance agent profiles
 - Triggering Vercel deployments
 - Monitoring progress and logs
 
@@ -58,12 +58,16 @@ control-center/
 │   ├── index.ts                    # Entry point
 │   ├── server.ts                   # Express server setup
 │   │
-│   ├── api/
-│   │   └── domain-client.ts        # Domain.com.au API client
-│   │
-│   ├── enrichment/
-│   │   ├── pipeline.ts             # Main enrichment orchestrator
-│   │   └── prompts.ts              # Agent prompts
+│   ├── skills/                     # Claude Agent SDK skills
+│   │   ├── discovery/
+│   │   │   ├── pipeline.ts         # Discovery orchestrator
+│   │   │   └── prompts.ts          # Discovery prompts
+│   │   ├── enrichment/
+│   │   │   ├── pipeline.ts         # Enrichment orchestrator
+│   │   │   └── prompts.ts          # Enrichment prompts
+│   │   └── shared/
+│   │       ├── output-schema.ts    # SubAgentOutput (shared)
+│   │       └── cost-tracker.ts     # Cost management
 │   │
 │   ├── db/
 │   │   ├── database.ts             # SQLite connection
@@ -77,6 +81,7 @@ control-center/
 │   │   ├── suburbs.ts              # Suburb endpoints
 │   │   ├── agencies.ts             # Agency endpoints
 │   │   ├── agents.ts               # Agent endpoints
+│   │   ├── discovery.ts            # Discovery endpoints
 │   │   ├── enrichment.ts           # Enrichment endpoints
 │   │   ├── deploy.ts               # Deploy endpoints
 │   │   └── events.ts               # SSE endpoint
@@ -211,8 +216,8 @@ suburbRoutes.get('/:id', (req, res) => {
   res.json(suburb);
 });
 
-// POST /api/suburbs/:id/fetch - Trigger API fetch for suburb
-suburbRoutes.post('/:id/fetch', async (req, res) => {
+// POST /api/suburbs/:id/discover - Run discovery for suburb
+suburbRoutes.post('/:id/discover', async (req, res) => {
   const suburb = db.prepare(`
     SELECT * FROM scrape_progress WHERE id = ?
   `).get(req.params.id);
@@ -221,10 +226,11 @@ suburbRoutes.post('/:id/fetch', async (req, res) => {
     return res.status(404).json({ error: 'Suburb not found' });
   }
 
-  // Start fetch in background
-  fetchSuburbData(suburb).catch(console.error);
+  // Start discovery in background
+  discoveryPipeline.discoverSuburb(suburb.suburb_name, suburb.state)
+    .catch(console.error);
 
-  res.json({ message: 'Fetch started', suburb_id: suburb.suburb_id });
+  res.json({ message: 'Discovery started', suburb_id: suburb.suburb_id });
 });
 ```
 
@@ -463,7 +469,7 @@ export function logAndBroadcast(level: string, source: string, message: string, 
 │  │                                                                          ││
 │  │  Selected: 2 suburbs, 4 agencies, ~45 agents                            ││
 │  │                                                                          ││
-│  │  [▶ Fetch from Domain API]  [▶ Run Enrichment]  [▶ Trigger Build]       ││
+│  │  [▶ Run Discovery]  [▶ Run Enrichment]  [▶ Trigger Build]               ││
 │  │                                                                          ││
 │  └─────────────────────────────────────────────────────────────────────────┘│
 │                                                                              │
@@ -638,9 +644,9 @@ export function logAndBroadcast(level: string, source: string, message: string, 
   </div>
 
   <div class="action-buttons">
-    <button id="btn-fetch" class="action-btn" disabled>
+    <button id="btn-discover" class="action-btn" disabled>
       <span class="btn-icon">▶</span>
-      <span class="btn-text">Fetch from Domain API</span>
+      <span class="btn-text">Run Discovery</span>
     </button>
 
     <button id="btn-enrich" class="action-btn" disabled>
@@ -654,8 +660,8 @@ export function logAndBroadcast(level: string, source: string, message: string, 
     </button>
   </div>
 
-  <div class="api-budget">
-    <span>API Budget: <strong id="api-remaining">500</strong>/500 calls remaining</span>
+  <div class="cost-tracker">
+    <span>Daily Budget: <strong id="cost-remaining">$10.00</strong> remaining</span>
   </div>
 </div>
 ```
@@ -670,9 +676,9 @@ interface ActionButtonState {
 }
 
 const buttonStates = {
-  fetch: {
-    idle: { enabled: true, loading: false, text: 'Fetch from Domain API' },
-    loading: { enabled: false, loading: true, text: 'Fetching...' },
+  discover: {
+    idle: { enabled: true, loading: false, text: 'Run Discovery' },
+    loading: { enabled: false, loading: true, text: 'Discovering...' },
     disabled: { enabled: false, loading: false, text: 'Select suburbs first' },
   },
   enrich: {
@@ -690,21 +696,21 @@ const buttonStates = {
 ### Action Handlers
 
 ```typescript
-// Fetch action
-document.getElementById('btn-fetch').addEventListener('click', async () => {
+// Discovery action
+document.getElementById('btn-discover').addEventListener('click', async () => {
   const selectedSuburbs = getSelectedSuburbs();
   if (selectedSuburbs.length === 0) return;
 
-  setButtonState('fetch', 'loading');
+  setButtonState('discover', 'loading');
 
   try {
     for (const suburb of selectedSuburbs) {
-      await fetch(`/api/suburbs/${suburb.id}/fetch`, { method: 'POST' });
+      await fetch(`/api/suburbs/${suburb.id}/discover`, { method: 'POST' });
     }
+    // Progress tracked via SSE
   } catch (error) {
-    showError('Fetch failed: ' + error.message);
-  } finally {
-    setButtonState('fetch', 'idle');
+    showError('Discovery failed: ' + error.message);
+    setButtonState('discover', 'idle');
   }
 });
 
@@ -820,9 +826,9 @@ document.getElementById('btn-deploy').addEventListener('click', async () => {
 
 | Source | Color | Purpose |
 |--------|-------|---------|
-| `API` | Purple | Domain API calls |
+| `DISCOVERY` | Purple | Discovery skill activity |
+| `ENRICH` | Orange | Enrichment skill activity |
 | `DB` | Teal | Database operations |
-| `ENRICH` | Orange | Enrichment pipeline |
 | `AGENT` | Pink | Sub-agent activity |
 | `BUILD` | Indigo | Vercel deployment |
 | `SYSTEM` | Gray | System messages |
@@ -901,8 +907,10 @@ eventStream.connect();
 | `log` | `{ timestamp, level, source, message }` | Activity log entry |
 | `suburb_updated` | `{ id, status, agencies_found, agents_found }` | Suburb progress |
 | `agency_updated` | `{ id, agents_enriched, agents_total }` | Agency progress |
-| `enrichment_progress` | `{ processed, total, current_agent }` | Batch progress |
-| `enrichment_complete` | `{ successful, partial, failed }` | Batch finished |
+| `discovery_progress` | `{ agencies_found, agents_found, current_agency }` | Discovery progress |
+| `discovery_complete` | `{ agencies, agents, cost }` | Discovery finished |
+| `enrichment_progress` | `{ processed, total, current_agent }` | Enrichment progress |
+| `enrichment_complete` | `{ successful, partial, failed }` | Enrichment finished |
 | `deploy_status` | `{ status, url }` | Build progress |
 
 ---
@@ -1029,7 +1037,7 @@ class ControlCenter {
     }
 
     // Update button states
-    document.getElementById('btn-fetch').disabled = suburbCount === 0;
+    document.getElementById('btn-discover').disabled = suburbCount === 0;
     document.getElementById('btn-enrich').disabled = agencyCount === 0;
   }
 }
@@ -1130,6 +1138,6 @@ function addLogEntry(entry: LogEntry) {
 ## Related Specifications
 
 - **[01-architecture.md](./01-architecture.md)** - Control Center in system architecture
-- **[03-domain-api.md](./03-domain-api.md)** - API integration details
-- **[04-enrichment-pipeline.md](./04-enrichment-pipeline.md)** - Enrichment implementation
+- **[03-discovery-skill.md](./03-discovery-skill.md)** - Discovery Skill implementation
+- **[04-enrichment-pipeline.md](./04-enrichment-pipeline.md)** - Enrichment Skill implementation
 - **[08-operations.md](./08-operations.md)** - Operational workflows

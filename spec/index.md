@@ -23,8 +23,8 @@ This specification is divided into 8 domain-specific documents. Each document is
 |---|------|--------|-------------|
 | 01 | [architecture.md](./01-architecture.md) | System Design | Two-app architecture, data flow, project structure, application boundaries |
 | 02 | [data-schemas.md](./02-data-schemas.md) | Data Layer | SQLite schemas, TypeScript interfaces, field definitions, relationships |
-| 03 | [domain-api.md](./03-domain-api.md) | External API | Domain.com.au OAuth, endpoints, response shapes, rate limits |
-| 04 | [enrichment-pipeline.md](./04-enrichment-pipeline.md) | AI Integration | Claude Agent SDK, main/sub-agent architecture, research rules |
+| 03 | [discovery-skill.md](./03-discovery-skill.md) | AI Integration | Claude Discovery Skill, agency/agent discovery via web research |
+| 04 | [enrichment-pipeline.md](./04-enrichment-pipeline.md) | AI Integration | Claude Enrichment Skill, main/sub-agent architecture, research rules |
 | 05 | [control-center.md](./05-control-center.md) | Admin Application | UI design, actions, streaming logs, Express server |
 | 06 | [seo-site.md](./06-seo-site.md) | Public Application | Page templates, build process, components, database queries |
 | 07 | [seo-strategy.md](./07-seo-strategy.md) | SEO | URLs, Schema.org markup, meta tags, sitemaps, FAQ generation |
@@ -52,13 +52,13 @@ This specification is divided into 8 domain-specific documents. Each document is
 
 | Included | Excluded (V2) |
 |----------|---------------|
-| Domain API → agencies → agents | Live listings data |
-| Claude enrichment (experience, languages, awards) | Individual agent API calls |
-| Static pages (agent, agency, suburb, state) | Properties sold stats |
-| Control Center with UI | Review collection |
-| Vercel Deploy Hook | Agent claiming / auth |
-| Schema markup & sitemaps | ISR / Vercel KV |
-| Sydney suburbs only | Brisbane / Melbourne |
+| Claude Discovery Skill → agencies → agents | Live listings data |
+| Claude Enrichment Skill (experience, languages, awards) | Properties sold stats |
+| Static pages (agent, agency, suburb, state) | Review collection |
+| Control Center with UI | Agent claiming / auth |
+| Vercel Deploy Hook | ISR / Vercel KV |
+| Schema markup & sitemaps | Brisbane / Melbourne |
+| Sydney suburbs only | |
 
 ### Page Types
 
@@ -72,10 +72,10 @@ This specification is divided into 8 domain-specific documents. Each document is
 ### Data Flow Summary
 
 ```
-1. User selects suburbs/agencies in Control Center UI
-2. Control Center fetches data from Domain.com.au API
-3. Data stored in SQLite database
-4. Claude Agent SDK enriches agent profiles
+1. User selects suburbs in Control Center UI
+2. Claude Discovery Skill finds agencies/agents via web research
+3. Data stored in SQLite database (enrichment_status = 'pending')
+4. Claude Enrichment Skill enhances agent profiles
 5. Enriched data updated in SQLite
 6. Vercel Deploy Hook triggered
 7. Next.js builds static pages from SQLite
@@ -95,7 +95,7 @@ This specification is divided into 8 domain-specific documents. Each document is
 
 | Task | Start With |
 |------|------------|
-| Setting up Domain API | `03-domain-api.md` |
+| Setting up Discovery Skill | `03-discovery-skill.md` |
 | Implementing enrichment | `04-enrichment-pipeline.md` |
 | Building Control Center UI | `05-control-center.md` |
 | Creating page templates | `06-seo-site.md` |
@@ -123,8 +123,8 @@ This specification is divided into 8 domain-specific documents. Each document is
 │     ┌─────┴─────┐                                                       │
 │     ▼           ▼                                                       │
 │  ┌──────────┐  ┌─────────────────────┐                                  │
-│  │ 03-domain│  │ 04-enrichment       │                                  │
-│  │ -api     │  │ -pipeline           │                                  │
+│  │ 03-disco-│  │ 04-enrichment       │                                  │
+│  │ very-skill│ │ -pipeline           │                                  │
 │  └────┬─────┘  └──────────┬──────────┘                                  │
 │       │                   │                                              │
 │       └─────────┬─────────┘                                              │

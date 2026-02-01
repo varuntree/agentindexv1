@@ -48,15 +48,16 @@ This specification covers the operational aspects of running ARI:
 
 ```bash
 # ═══════════════════════════════════════════════════════════════════
-# DOMAIN.COM.AU API
-# ═══════════════════════════════════════════════════════════════════
-DOMAIN_API_CLIENT_ID=your_client_id
-DOMAIN_API_CLIENT_SECRET=your_client_secret
-
-# ═══════════════════════════════════════════════════════════════════
-# ANTHROPIC (CLAUDE)
+# CLAUDE AGENT SDK
 # ═══════════════════════════════════════════════════════════════════
 ANTHROPIC_API_KEY=sk-ant-xxx
+
+# ═══════════════════════════════════════════════════════════════════
+# COST MANAGEMENT
+# ═══════════════════════════════════════════════════════════════════
+CLAUDE_DAILY_BUDGET_USD=10.00
+CLAUDE_DISCOVERY_MAX_AGENCIES_PER_RUN=10
+CLAUDE_ENRICHMENT_MAX_AGENTS_PER_BATCH=50
 
 # ═══════════════════════════════════════════════════════════════════
 # VERCEL DEPLOYMENT
@@ -94,19 +95,13 @@ NEXT_PUBLIC_SITE_URL=https://ari.com.au
 
 | Variable | Sensitivity | Storage |
 |----------|-------------|---------|
-| `DOMAIN_API_CLIENT_SECRET` | High | Never commit, local only |
 | `ANTHROPIC_API_KEY` | High | Never commit, local only |
 | `VERCEL_DEPLOY_HOOK_URL` | Medium | Contains secret in URL |
 | `VERCEL_TOKEN` | Medium | Optional, for monitoring |
 | `DATABASE_PATH` | Low | Can be committed |
+| `CLAUDE_DAILY_BUDGET_USD` | Low | Can be committed |
 
 ### Getting API Credentials
-
-**Domain.com.au API:**
-1. Go to https://developer.domain.com.au/
-2. Create an account
-3. Create an application
-4. Copy Client ID and Client Secret
 
 **Anthropic API:**
 1. Go to https://console.anthropic.com/
@@ -543,16 +538,16 @@ function checkDatabaseHealth(): { healthy: boolean; issues: string[] } {
 │                                                                          │
 │  1. MORNING CHECK (5 min)                                               │
 │     □ Open Control Center                                                │
-│     □ Check API calls remaining (should be 500)                         │
+│     □ Check daily budget remaining (should be ~$10)                     │
 │     □ Review yesterday's progress                                        │
 │                                                                          │
 │  2. SELECT WORK (5 min)                                                  │
 │     □ Choose 3-5 suburbs from different regions                         │
-│     □ Check estimated API calls (should be < 100)                       │
+│     □ Check estimated cost (should be < $5)                             │
 │                                                                          │
-│  3. API FETCH (10-15 min)                                               │
-│     □ Click "Fetch from Domain API"                                      │
-│     □ Monitor activity log for errors                                    │
+│  3. DISCOVERY (10-20 min)                                               │
+│     □ Click "Run Discovery"                                              │
+│     □ Monitor activity log for agencies/agents found                    │
 │     □ Verify agencies and agents stored                                 │
 │                                                                          │
 │  4. ENRICHMENT (30-60 min)                                              │
@@ -573,24 +568,24 @@ function checkDatabaseHealth(): { healthy: boolean; issues: string[] } {
 └─────────────────────────────────────────────────────────────────────────┘
 ```
 
-### API Budget Management
+### Claude SDK Cost Management
 
-| Operation | API Calls | Notes |
+| Operation | Est. Cost | Notes |
 |-----------|-----------|-------|
-| Suburb search | 1 | Per suburb |
-| Agency detail | 1 | Per agency (~12/suburb) |
-| **Per suburb total** | ~13 | Varies by suburb |
-| **Daily budget** | 500 | Resets 10am AEST |
-| **Safe daily usage** | ~300 | Leave buffer for retries |
-| **Suburbs per day** | 3-5 | Conservative estimate |
+| Discovery - Main agent | ~$0.03 | Per suburb |
+| Discovery - Sub-agent | ~$0.05 | Per agency |
+| **Discovery per suburb** | ~$0.50-0.80 | ~10 agencies |
+| Enrichment - Main agent | ~$0.05 | Per batch |
+| Enrichment - Sub-agent | ~$0.10 | Per 5-10 agents |
+| **Enrichment per batch (50)** | ~$0.50-1.00 | |
 
-### Enrichment Cost Management
+### Daily Budget Guidelines
 
-| Model | Cost | Usage |
-|-------|------|-------|
-| Claude Sonnet | ~$3/1M input, ~$15/1M output | Main + Sub agents |
-| Batch size | 50 agents | ~$0.50-1.00 per batch |
-| Daily estimate | 100-200 agents | ~$2-4/day |
+| Budget | Suburbs/Day | Agencies/Day | Agents/Day |
+|--------|-------------|--------------|------------|
+| $5/day | ~6-8 | ~60-80 | ~400-600 |
+| $10/day | ~12-16 | ~120-160 | ~800-1200 |
+| $20/day | ~25-30 | ~250-300 | ~1500-2000 |
 
 ---
 
@@ -723,40 +718,51 @@ app.get('/health', (req, res) => {
 
 ### Common Issues
 
-**1. API Authentication Failed**
+**1. Claude API Error**
 
 ```
-Error: Auth failed: 401 Unauthorized
-```
-
-**Solution:**
-- Verify `DOMAIN_API_CLIENT_ID` and `DOMAIN_API_CLIENT_SECRET`
-- Check if credentials have expired
-- Ensure scopes include `api_agencies_read`
-
-**2. Rate Limit Exceeded**
-
-```
-Error: Daily API limit reached (500 calls)
+Error: Claude API authentication failed
 ```
 
 **Solution:**
-- Wait until 10am AEST for reset
+- Verify `ANTHROPIC_API_KEY` is correct
+- Check if key has expired or been revoked
+- Ensure key has sufficient permissions
+
+**2. Daily Budget Exceeded**
+
+```
+Error: Daily Claude budget exceeded ($10.00)
+```
+
+**Solution:**
+- Wait until next day for budget reset
+- Increase `CLAUDE_DAILY_BUDGET_USD` if needed
 - Reduce suburbs processed per day
-- Check for infinite loops in fetch logic
 
-**3. Enrichment Timeout**
+**3. Discovery Timeout**
+
+```
+Error: Discovery timeout after 5 minutes
+```
+
+**Solution:**
+- Reduce `CLAUDE_DISCOVERY_MAX_AGENCIES_PER_RUN`
+- Check if agency websites are accessible
+- Review sub-agent logs for stuck searches
+
+**5. Enrichment Timeout**
 
 ```
 Error: Enrichment batch timeout after 5 minutes
 ```
 
 **Solution:**
-- Reduce batch size (try 30 instead of 50)
+- Reduce `CLAUDE_ENRICHMENT_MAX_AGENTS_PER_BATCH` (try 30 instead of 50)
 - Check Claude API status
-- Review sub-agent prompts for complexity
+- Review sub-agent logs for stuck searches
 
-**4. Vercel Build Failed**
+**6. Vercel Build Failed**
 
 ```
 Error: Build failed with exit code 1
@@ -768,7 +774,7 @@ Error: Build failed with exit code 1
 - Review build logs for specific error
 - Check for TypeScript errors
 
-**5. Page 404 After Deploy**
+**7. Page 404 After Deploy**
 
 ```
 Error: Page /agent/xyz not found
@@ -804,22 +810,21 @@ sqlite3 control-center/data/ari.db \
 - [ ] Set up Control Center Node.js project
 - [ ] Set up Next.js SEO site project
 - [ ] Create SQLite database with schemas
-- [ ] Implement Domain API client
 - [ ] Seed scrape_progress with Tier 1 suburbs
 - [ ] Basic Control Center UI (suburb list)
 
-### Week 3-4: Data Pipeline
+### Week 3-4: Discovery Skill
 
-- [ ] Complete API fetching flow
-- [ ] Store agencies and agents in SQLite
-- [ ] Control Center: agency selection UI
-- [ ] Control Center: streaming activity log
-- [ ] Process Tier 1 suburbs
+- [ ] Implement Discovery pipeline
+- [ ] Main agent + sub-agent architecture for discovery
+- [ ] Agency/agent extraction from web
+- [ ] Duplicate detection
+- [ ] Control Center: discovery UI and progress
 
-### Week 5-6: Claude Agent SDK
+### Week 5-6: Enrichment Skill
 
-- [ ] Implement enrichment pipeline
-- [ ] Main agent + sub-agent architecture
+- [ ] Implement Enrichment pipeline
+- [ ] Main agent + sub-agent architecture for enrichment
 - [ ] Structured output handling
 - [ ] Store enriched data
 - [ ] Enrichment progress UI
@@ -854,7 +859,7 @@ sqlite3 control-center/data/ari.db \
 ## Related Specifications
 
 - **[01-architecture.md](./01-architecture.md)** - System architecture
-- **[03-domain-api.md](./03-domain-api.md)** - API integration
-- **[04-enrichment-pipeline.md](./04-enrichment-pipeline.md)** - Claude enrichment
+- **[03-discovery-skill.md](./03-discovery-skill.md)** - Discovery Skill
+- **[04-enrichment-pipeline.md](./04-enrichment-pipeline.md)** - Enrichment Skill
 - **[05-control-center.md](./05-control-center.md)** - Control Center UI
 - **[07-seo-strategy.md](./07-seo-strategy.md)** - SEO monitoring
